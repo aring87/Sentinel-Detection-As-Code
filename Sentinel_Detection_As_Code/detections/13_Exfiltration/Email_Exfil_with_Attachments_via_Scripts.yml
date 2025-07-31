@@ -1,21 +1,19 @@
 title: Email exfil with attachments via scripts
-id: sigma-029
+id: dodea-sig-021-email-exfil-with-att
 status: experimental
 description: Email exfil with attachments via scripts
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
   - attack.exfiltration
   - attack.t1048
-  - ckc
-  - cyber-kill-chain.exfiltration
+  - ckc.exfiltration
 logsource:
   product: windows
   category: process_creation
 detection:
   selection:
-    query: >-
-      DeviceProcessEvents | where ProcessCommandLine has_any ("smtp",
+    query: DeviceProcessEvents | where ProcessCommandLine has_any ("smtp",
       "send-mailmessage", "email", "outlook")
   condition: selection
 falsepositives: null
