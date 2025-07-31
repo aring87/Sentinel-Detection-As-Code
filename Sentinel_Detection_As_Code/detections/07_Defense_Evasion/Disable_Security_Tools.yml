@@ -1,5 +1,5 @@
 title: Attempt to Disable Security Tools
-id: dodea-sig-011-attempt-to-disable-s
+id: dodea-sig-011-attempt-to-disable-security-tools
 status: experimental
 description: Detects attempts to disable Windows Defender or other security features
 author: Adam Ring
