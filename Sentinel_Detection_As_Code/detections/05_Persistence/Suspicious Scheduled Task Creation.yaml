@@ -1,5 +1,5 @@
 title: Suspicious Scheduled Task Creation
-id: dodea-sig-009-suspicious-scheduled
+id: dodea-sig-009-suspicious-scheduled-task-creation
 status: experimental
 description: >
   Detects creation of scheduled tasks using schtasks.exe or
