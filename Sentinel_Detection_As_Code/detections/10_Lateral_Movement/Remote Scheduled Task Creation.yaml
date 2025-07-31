@@ -1,15 +1,15 @@
 title: Remote Scheduled Task Creation
-id: sigma-lateral-003
+id: dodea-sig-016-remote-scheduled-task-creation
 status: experimental
 description: >
-  Detects use of schtasks.exe to create scheduled tasks on remote machines — a
-  technique used for lateral execution.
+  Detects use of schtasks.exe to create scheduled tasks on remote
+  machines — a technique used for lateral execution.
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
   - attack.t1053.005
   - attack.lateral_movement
-  - killchain.lateral-movement
+  - ckc.lateral-movement
   - data.source.DeviceProcessEvents
 logsource:
   product: windows
