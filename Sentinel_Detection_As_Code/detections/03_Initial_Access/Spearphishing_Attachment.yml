@@ -1,5 +1,5 @@
 title: Suspicious Email Attachments from External Senders
-id: dodea-sig-004-suspicious-email-att
+id: dodea-sig-004-suspicious-email-attachments
 status: experimental
 description: Detects potential spearphishing via executable or script attachments
   from non-trusted senders
