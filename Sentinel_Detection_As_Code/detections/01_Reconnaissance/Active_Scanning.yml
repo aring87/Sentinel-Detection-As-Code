@@ -1,5 +1,5 @@
 title: Vulnerability Scanning Detected
-id: dodea-sig-001-vulnerability-scanni
+id: dodea-sig-001-vulnerability-scannining-detection
 status: experimental
 description: Detects usage of known vulnerability scanning tools
 author: Adam Ring
