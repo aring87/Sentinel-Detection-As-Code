@@ -1,31 +1,29 @@
 title: Decode PowerShell -EncodedCommand
-id: sigma-019
+id: dodea-sig-005-decode-powershell-en
 status: experimental
 description: Decode PowerShell -EncodedCommand
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
-  - attack.execution
-  - attack.t1059.001
-  - ckc
-  - cyber-kill-chain.installation
+- attack.execution
+- attack.t1059.001
+- ckc
+- ckc.installation
 logsource:
   product: windows
   category: process_creation
 detection:
   selection:
-    query: >-
-      DeviceProcessEvents | where FileName =~ "powershell.exe" | where
-      ProcessCommandLine has_any ("-enc", "EncodedCommand") | extend Encoded =
-      extract(@"(?:-enc|EncodedCommand)\s+([a-zA-Z0-9+/=]+)", 1,
-      ProcessCommandLine) | extend Decoded =
-      tostring(base64_decodestring(Encoded)) | project TimeGenerated,
-      DeviceName, AccountName, ProcessCommandLine, Encoded, Decoded
+    query: DeviceProcessEvents | where FileName =~ "powershell.exe" | where ProcessCommandLine
+      has_any ("-enc", "EncodedCommand") | extend Encoded = extract(@"(?:-enc|EncodedCommand)\s+([a-zA-Z0-9+/=]+)",
+      1, ProcessCommandLine) | extend Decoded = tostring(base64_decodestring(Encoded))
+      | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, Encoded,
+      Decoded
   condition: selection
 falsepositives: null
 level: high
 tactics:
-  - execution
+- execution
 techniques:
-  - t1059.001
+- t1059.001
 lifecycle: experimental
