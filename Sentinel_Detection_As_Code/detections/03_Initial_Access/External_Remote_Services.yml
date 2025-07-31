@@ -1,29 +1,28 @@
-title: 'External Remote Service Access (RDP, VPN)'
-id: a1b2c3d4-0004-0004-0004-000000000004
+title: External Remote Service Access (RDP, VPN)
+id: dodea-sig-003-external-remote-serv
 status: experimental
 description: Detects remote access usage from unexpected geographic locations
 author: Adam Ring
 date: '2025-07-31'
 tags:
-  - attack.initial_access
-  - attack.t1133
-  - cyber-kill-chain.command-and-control
+- attack.initial_access
+- attack.t1133
+- ckc.command-and-control
 logsource:
   product: azuread
   category: process_creation
 detection:
   selection:
-    query: >-
-      SigninLogs| where AppDisplayName has_any ("RDP", "VPN", "Remote Desktop")
+    query: 'SigninLogs| where AppDisplayName has_any ("RDP", "VPN", "Remote Desktop")
 
-      | where Location != "US"| project TimeGenerated, UserPrincipalName,
-      IPAddress, AppDisplayName, Location
+      | where Location != "US"| project TimeGenerated, UserPrincipalName, IPAddress,
+      AppDisplayName, Location'
   condition: selection
 falsepositives:
-  - None known
+- None known
 level: high
 tactics:
-  - initial_access
+- initial_access
 techniques:
-  - t1133
+- t1133
 lifecycle: experimental
