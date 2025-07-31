@@ -1,14 +1,14 @@
 title: External PowerShell or LOLBin traffic
-id: sigma-021
+id: dodea-sig-020-external-powershell-LOLBIN-traffic
 status: experimental
 description: External PowerShell or LOLBin traffic
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
   - attack.command_and_control
   - attack.t1071.001
   - ckc
-  - cyber-kill-chain.command-and-control
+  - ckc.command-and-control
 logsource:
   product: windows
   category: network_connection
@@ -17,8 +17,7 @@ detection:
     query: >-
       DeviceNetworkEvents | where RemoteIPType == "Public"
 
-      | where InitiatingProcessFileName in~ ("powershell.exe", "wscript.exe",
-      "mshta.exe")
+      | where InitiatingProcessFileName in~ ("powershell.exe", "wscript.exe", "mshta.exe")
   condition: selection
 falsepositives: null
 level: high
