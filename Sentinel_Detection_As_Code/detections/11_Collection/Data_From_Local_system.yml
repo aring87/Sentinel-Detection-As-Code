@@ -1,5 +1,5 @@
 title: Data Collection from Local System
-id: dodea-sig-018-data-collection-from
+id: dodea-sig-018-data-collection-from-local-system
 status: experimental
 description: Detects enumeration or access to sensitive files on the local system
 author: Adam Ring
