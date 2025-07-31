@@ -3,7 +3,7 @@ id: a1b2c3d4-0003-0003-0003-000000000003
 status: experimental
 description: Detects suspicious API calls indicative of DLL injection
 author: Adam Ring
-date: '2025-07-31'
+date: 2025-07-31
 tags:
   - attack.privilege_escalation
   - attack.t1055.001
