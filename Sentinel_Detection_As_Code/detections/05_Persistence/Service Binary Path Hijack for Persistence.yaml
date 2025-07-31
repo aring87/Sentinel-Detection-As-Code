@@ -1,0 +1,39 @@
+title: Service Binary Path Hijack for Persistence
+id: sigma-persistence-003
+status: experimental
+description: >
+  Detects changes to Windows service binary paths which may indicate persistence
+  via service hijacking.
+author: adam.ring
+date: 2025-07-31T00:00:00.000Z
+tags:
+  - attack.t1543.003
+  - attack.persistence
+  - killchain.installation
+  - data.source.DeviceRegistryEvents
+logsource:
+  product: windows
+  category: registry_event
+detection:
+  selection:
+    query: >-
+      DeviceRegistryEvents
+
+      | where RegistryKey has_any (
+          @"HKLM\\SYSTEM\\CurrentControlSet\\Services"
+        )
+      | where RegistryValueName =~ "ImagePath"
+
+      | where ActionType =~ "RegistryValueSet"
+
+      | project TimeGenerated, DeviceName, RegistryKey, RegistryValueData,
+      InitiatingProcessFileName
+  condition: selection
+falsepositives:
+  - Legitimate software upgrades or IT admin changes
+level: high
+tactics:
+  - Persistence
+techniques:
+  - T1543.003
+lifecycle: experimental
