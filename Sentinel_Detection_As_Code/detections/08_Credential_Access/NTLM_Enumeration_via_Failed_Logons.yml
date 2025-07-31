@@ -1,14 +1,14 @@
 title: NTLM Enumeration via Failed Logons
-id: sigma-004
+id: dodea-sig-012-ntlm-enumeration-via-failed-logons
 status: experimental
 description: NTLM Enumeration via Failed Logons
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
   - attack.credential_access
   - attack.t1110.003
   - ckc
-  - cyber-kill-chain.delivery
+  - ckc.delivery
 logsource:
   product: windows
   category: logon
@@ -19,8 +19,7 @@ detection:
 
       | where ActionType =~ "LogonFailed"
 
-      | summarize Attempts = count(), DistinctAccounts = dcount(AccountName) by
-      DeviceName, RemoteIP, bin(TimeGenerated, 10m)
+      | summarize Attempts = count(), DistinctAccounts = dcount(AccountName) by DeviceName, RemoteIP, bin(TimeGenerated, 10m)
 
       | where Attempts > 10
   condition: selection
