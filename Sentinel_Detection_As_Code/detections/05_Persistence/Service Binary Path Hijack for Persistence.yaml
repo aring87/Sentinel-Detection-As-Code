@@ -1,5 +1,5 @@
 title: Service Binary Path Hijack for Persistence
-id: dodea-sig-008-service-binary-path-
+id: dodea-sig-008-service-binary-path-Hijack
 status: experimental
 description: >
   Detects changes to Windows service binary paths which may indicate
