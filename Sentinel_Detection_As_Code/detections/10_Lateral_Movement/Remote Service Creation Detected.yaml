@@ -1,23 +1,22 @@
 title: Remote Service Creation Detected
-id: sigma-lateral-001
+id: dodea-sig-017-remote-service-creation
 status: experimental
 description: >
-  Detects use of sc.exe or wmic to create services on remote systems (known
-  method for lateral movement)
+  Detects use of sc.exe or wmic to create services on remote systems
+  (known method for lateral movement)
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
   - attack.t1021.002
   - attack.lateral_movement
-  - killchain.lateral-movement
+  - ckc.lateral-movement
   - data.source.DeviceProcessEvents
 logsource:
   product: windows
   category: process_creation
 detection:
   selection:
-    query: >-
-      DeviceProcessEvents | where FileName in~ ("sc.exe", "wmic.exe") | where
+    query: DeviceProcessEvents | where FileName in~ ("sc.exe", "wmic.exe") | where
       ProcessCommandLine has_any ("create", "start") | where ProcessCommandLine
       has "\\\\"  // indicates remote host | project TimeGenerated, DeviceName,
       AccountName, ProcessCommandLine
