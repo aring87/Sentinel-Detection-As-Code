@@ -1,0 +1,33 @@
+title: Remote Code Execution via WMI
+id: sigma-lateral-002
+status: experimental
+description: >-
+  Detects PowerShell or wmic commands that indicate remote WMI execution
+  (commonly used for lateral movement)
+author: adam.ring
+date: 2025-07-31T00:00:00.000Z
+tags:
+  - attack.t1047
+  - attack.lateral_movement
+  - killchain.lateral-movement
+  - data.source.DeviceProcessEvents
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    query: >-
+      DeviceProcessEvents | where FileName has_any ("powershell.exe",
+      "wmic.exe") | where ProcessCommandLine has_all ("\\root\\cimv2",
+      "Win32_Process") | where ProcessCommandLine has "\\\\"  // remote
+      indicator | project TimeGenerated, DeviceName, AccountName,
+      ProcessCommandLine
+  condition: selection
+falsepositives:
+  - Legitimate remote management or inventory tools
+level: high
+tactics:
+  - Lateral Movement
+techniques:
+  - T1047
+lifecycle: experimental
