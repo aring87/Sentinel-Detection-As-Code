@@ -1,5 +1,5 @@
 title: Decode PowerShell -EncodedCommand
-id: dodea-sig-005-decode-powershell-en
+id: dodea-sig-005-decode-powershell-encoded-command
 status: experimental
 description: Decode PowerShell -EncodedCommand
 author: adam.ring
