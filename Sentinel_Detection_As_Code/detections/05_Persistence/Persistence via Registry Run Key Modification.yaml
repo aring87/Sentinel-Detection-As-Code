@@ -1,5 +1,5 @@
 title: Persistence via Registry Run Key Modification
-id: dodea-sig-007-persistence-via-regi
+id: dodea-sig-007-persistence-via-registry
 status: experimental
 description: >
   Detects modification of common registry locations used for
