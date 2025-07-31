@@ -1,5 +1,5 @@
 title: External Remote Service Access (RDP, VPN)
-id: dodea-sig-003-external-remote-serv
+id: dodea-sig-003-external-remote-service-access
 status: experimental
 description: Detects remote access usage from unexpected geographic locations
 author: Adam Ring
