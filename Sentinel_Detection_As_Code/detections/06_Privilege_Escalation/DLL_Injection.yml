@@ -1,5 +1,5 @@
 title: DLL Injection Behavior
-id: a1b2c3d4-0003-0003-0003-000000000003
+id: dodea-sig-010-dll-injection-behavior
 status: experimental
 description: Detects suspicious API calls indicative of DLL injection
 author: Adam Ring
@@ -7,7 +7,7 @@ date: 2025-07-31
 tags:
   - attack.privilege_escalation
   - attack.t1055.001
-  - cyber-kill-chain.exploitation
+  - ckc.exploitation
 logsource:
   product: windows
   category: process_creation
