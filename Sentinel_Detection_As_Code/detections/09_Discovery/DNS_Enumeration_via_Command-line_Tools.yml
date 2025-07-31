@@ -1,21 +1,19 @@
 title: DNS Enumeration via command-line tools
-id: sigma-001
+id: dodea-sig-013-dns-enumeration-via-
 status: experimental
 description: DNS Enumeration via command-line tools
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
   - attack.discovery
   - attack.t1046
-  - ckc
-  - cyber-kill-chain.reconnaissance
+  - ckc.reconnaissance
 logsource:
   product: windows
   category: process_creation
 detection:
   selection:
-    query: >-
-      DeviceProcessEvents | where FileName in~ ("nslookup.exe", "whois.exe",
+    query: DeviceProcessEvents | where FileName in~ ("nslookup.exe", "whois.exe",
       "dig.exe") | project TimeGenerated, DeviceName, AccountName, FileName,
       ProcessCommandLine
   condition: selection
