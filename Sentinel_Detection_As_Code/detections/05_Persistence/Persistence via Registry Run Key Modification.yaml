@@ -1,39 +1,34 @@
 title: Persistence via Registry Run Key Modification
-id: sigma-persistence-001
+id: dodea-sig-007-persistence-via-regi
 status: experimental
-description: >
-  Detects modification of common registry locations used for persistence such as
-  Run, RunOnce, and similar keys.
+description: 'Detects modification of common registry locations used for persistence
+  such as Run, RunOnce, and similar keys.
+
+  '
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
-  - attack.t1547.001
-  - attack.persistence
-  - killchain.installation
-  - data.source.DeviceRegistryEvents
+- attack.t1547.001
+- attack.persistence
+- ckc.installation
+- data.source.DeviceRegistryEvents
 logsource:
   product: windows
   category: registry_event
 detection:
   selection:
-    query: >-
-      DeviceRegistryEvents
-
-      | where RegistryKey has_any (
-          @"HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-          @"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-          @"HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce"
-        )
-      | where ActionType =~ "RegistryValueSet"
-
-      | project TimeGenerated, DeviceName, RegistryKey, RegistryValueName,
-      RegistryValueData, InitiatingProcessFileName
+    query: "DeviceRegistryEvents\n| where RegistryKey has_any (\n    @\"HKLM\\\\Software\\\
+      \\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\",\n    @\"HKCU\\\\Software\\\
+      \\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\",\n    @\"HKLM\\\\Software\\\
+      \\Microsoft\\\\Windows\\\\CurrentVersion\\\\RunOnce\"\n  )\n| where ActionType\
+      \ =~ \"RegistryValueSet\"\n| project TimeGenerated, DeviceName, RegistryKey,\
+      \ RegistryValueName, RegistryValueData, InitiatingProcessFileName"
   condition: selection
 falsepositives:
-  - Software installations or IT management tools
+- Software installations or IT management tools
 level: medium
 tactics:
-  - Persistence
+- Persistence
 techniques:
-  - T1547.001
+- T1547.001
 lifecycle: experimental

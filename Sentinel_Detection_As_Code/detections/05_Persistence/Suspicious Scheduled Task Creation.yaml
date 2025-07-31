@@ -1,32 +1,35 @@
 title: Suspicious Scheduled Task Creation
-id: sigma-persistence-002
+id: dodea-sig-009-suspicious-scheduled
 status: experimental
-description: >
-  Detects creation of scheduled tasks using schtasks.exe or PowerShell, which
-  can be used for persistence.
+description: 'Detects creation of scheduled tasks using schtasks.exe or PowerShell,
+  which can be used for persistence.
+
+  '
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
-  - attack.t1053.005
-  - attack.persistence
-  - killchain.installation
-  - data.source.DeviceProcessEvents
+- attack.t1053.005
+- attack.persistence
+- ckc.installation
+- data.source.DeviceProcessEvents
 logsource:
   product: windows
   category: process_creation
 detection:
   selection:
-    query: |-
-      DeviceProcessEvents
+    query: 'DeviceProcessEvents
+
       | where FileName in~ ("schtasks.exe", "powershell.exe")
+
       | where ProcessCommandLine has_any ("Create", "Register-ScheduledTask")
-      | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine
+
+      | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine'
   condition: selection
 falsepositives:
-  - Legitimate task creation by administrators or IT tools
+- Legitimate task creation by administrators or IT tools
 level: high
 tactics:
-  - Persistence
+- Persistence
 techniques:
-  - T1053.005
+- T1053.005
 lifecycle: experimental

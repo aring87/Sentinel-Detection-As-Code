@@ -1,39 +1,32 @@
 title: Service Binary Path Hijack for Persistence
-id: sigma-persistence-003
+id: dodea-sig-008-service-binary-path-
 status: experimental
-description: >
-  Detects changes to Windows service binary paths which may indicate persistence
+description: 'Detects changes to Windows service binary paths which may indicate persistence
   via service hijacking.
+
+  '
 author: adam.ring
-date: 2025-07-31T00:00:00.000Z
+date: 2025-07-31 00:00:00+00:00
 tags:
-  - attack.t1543.003
-  - attack.persistence
-  - killchain.installation
-  - data.source.DeviceRegistryEvents
+- attack.t1543.003
+- attack.persistence
+- ckc.installation
+- data.source.DeviceRegistryEvents
 logsource:
   product: windows
   category: registry_event
 detection:
   selection:
-    query: >-
-      DeviceRegistryEvents
-
-      | where RegistryKey has_any (
-          @"HKLM\\SYSTEM\\CurrentControlSet\\Services"
-        )
-      | where RegistryValueName =~ "ImagePath"
-
-      | where ActionType =~ "RegistryValueSet"
-
-      | project TimeGenerated, DeviceName, RegistryKey, RegistryValueData,
-      InitiatingProcessFileName
+    query: "DeviceRegistryEvents\n| where RegistryKey has_any (\n    @\"HKLM\\\\SYSTEM\\\
+      \\CurrentControlSet\\\\Services\"\n  )\n| where RegistryValueName =~ \"ImagePath\"\
+      \n| where ActionType =~ \"RegistryValueSet\"\n| project TimeGenerated, DeviceName,\
+      \ RegistryKey, RegistryValueData, InitiatingProcessFileName"
   condition: selection
 falsepositives:
-  - Legitimate software upgrades or IT admin changes
+- Legitimate software upgrades or IT admin changes
 level: high
 tactics:
-  - Persistence
+- Persistence
 techniques:
-  - T1543.003
+- T1543.003
 lifecycle: experimental
