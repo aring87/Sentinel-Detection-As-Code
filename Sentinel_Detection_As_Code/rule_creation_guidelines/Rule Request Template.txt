@@ -1,0 +1,41 @@
+## Rule Request Template
+---
+name: 🛡️ New Detection Rule Request
+about: Suggest a new detection rule for Microsoft Sentinel
+title: "[Rule Request] <short description>"
+labels: enhancement, detection-rule
+assignees: aring87
+
+---
+
+## ✨ Summary
+
+**Describe the detection idea:**
+- What behavior or attack is this rule meant to detect?
+- What log source(s) does it depend on?
+
+## 📌 MITRE ATT&CK Mapping
+
+| Tactic             | Technique             | Technique ID |
+|--------------------|-----------------------|--------------|
+| e.g., Execution    | PowerShell            | T1059.001    |
+| e.g., Credential Access | LSASS Memory Dump | T1003.001    |
+
+## 🧠 Context & Use Case
+
+- Why is this detection valuable?
+- Any relevant threat actor, malware, or CVE associations?
+
+## 📥 Sample Logs or KQL
+
+> (Optional) Paste sample KQL or describe expected fields here.
+
+## 🧪 Lifecycle
+
+- [ ] experimental
+- [ ] testing
+- [ ] production
+
+## 🖇 Related Issues or References
+
+- Link to threat intel, related alerts, blog posts, etc.

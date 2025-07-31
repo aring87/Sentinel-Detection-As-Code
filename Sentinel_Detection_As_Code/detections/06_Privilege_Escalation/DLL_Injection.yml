@@ -1,0 +1,29 @@
+title: DLL Injection Behavior
+id: a1b2c3d4-0003-0003-0003-000000000003
+status: experimental
+description: Detects suspicious API calls indicative of DLL injection
+author: Adam Ring
+date: '2025-07-31'
+tags:
+  - attack.privilege_escalation
+  - attack.t1055.001
+  - cyber-kill-chain.exploitation
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    query: >-
+      DeviceProcessEvents | where ProcessCommandLine has_any ("VirtualAllocEx",
+      "WriteProcessMemory", "CreateRemoteThread")
+
+      | project TimeGenerated, DeviceName, FileName, ProcessCommandLine
+  condition: selection
+falsepositives:
+  - None known
+level: high
+tactics:
+  - privilege_escalation
+techniques:
+  - t1055.001
+lifecycle: experimental

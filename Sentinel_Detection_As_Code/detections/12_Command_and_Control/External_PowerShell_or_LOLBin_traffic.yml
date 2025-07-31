@@ -1,0 +1,29 @@
+title: External PowerShell or LOLBin traffic
+id: sigma-021
+status: experimental
+description: External PowerShell or LOLBin traffic
+author: adam.ring
+date: 2025-07-31T00:00:00.000Z
+tags:
+  - attack.command_and_control
+  - attack.t1071.001
+  - ckc
+  - cyber-kill-chain.command-and-control
+logsource:
+  product: windows
+  category: network_connection
+detection:
+  selection:
+    query: >-
+      DeviceNetworkEvents | where RemoteIPType == "Public"
+
+      | where InitiatingProcessFileName in~ ("powershell.exe", "wscript.exe",
+      "mshta.exe")
+  condition: selection
+falsepositives: null
+level: high
+tactics:
+  - command_and_control
+techniques:
+  - t1071.001
+lifecycle: experimental

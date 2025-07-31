@@ -1,0 +1,29 @@
+title: Exfiltration Over Uncommon Port
+id: a1b2c3d4-0006-0006-0006-000000000006
+status: experimental
+description: Detects data exfiltration using uncommon network ports
+author: Adam Ring
+date: '2025-07-31'
+tags:
+  - attack.exfiltration
+  - attack.t1048.003
+  - cyber-kill-chain.exfiltration
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    query: >-
+      DeviceNetworkEvents| where RemotePort !in (80, 443, 22, 53)
+
+      | where SentBytes > 10000000| project TimeGenerated, DeviceName, RemoteIP,
+      RemotePort, SentBytes
+  condition: selection
+falsepositives:
+  - None known
+level: high
+tactics:
+  - exfiltration
+techniques:
+  - t1048.003
+lifecycle: experimental

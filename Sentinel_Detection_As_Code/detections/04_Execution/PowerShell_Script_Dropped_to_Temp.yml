@@ -1,0 +1,28 @@
+title: PowerShell script dropped to Temp
+id: sigma-020
+status: experimental
+description: PowerShell script dropped to Temp
+author: adam.ring
+date: 2025-07-31T00:00:00.000Z
+tags:
+  - attack.execution
+  - attack.t1059.001
+  - ckc
+  - cyber-kill-chain.installation
+logsource:
+  product: windows
+  category: file_event
+detection:
+  selection:
+    query: >-
+      DeviceFileEvents | where FolderPath has @"AppData\Local\Temp" | where
+      FileName has_any (".ps1", ".psm1") | where InitiatingProcessFileName =~
+      "powershell.exe"
+  condition: selection
+falsepositives: null
+level: high
+tactics:
+  - execution
+techniques:
+  - t1059.001
+lifecycle: experimental

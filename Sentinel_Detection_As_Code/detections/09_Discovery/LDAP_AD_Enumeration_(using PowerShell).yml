@@ -1,0 +1,29 @@
+title: LDAP/AD Enumeration (using PowerShell)
+id: sigma-002
+status: experimental
+description: LDAP/AD Enumeration (using PowerShell)
+author: adam.ring
+date: 2025-07-31T00:00:00.000Z
+tags:
+  - attack.discovery
+  - attack.t1018
+  - ckc
+  - cyber-kill-chain.reconnaissance
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    query: >-
+      DeviceProcessEvents | where ProcessCommandLine has_any ("Get-ADUser",
+      "Get-ADComputer", "Get-DomainUser", "net group", "dsquery")
+
+      | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine
+  condition: selection
+falsepositives: null
+level: high
+tactics:
+  - discovery
+techniques:
+  - t1018
+lifecycle: experimental

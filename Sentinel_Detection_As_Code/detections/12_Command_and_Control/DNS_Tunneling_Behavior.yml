@@ -1,0 +1,27 @@
+title: DNS tunneling behavior
+id: sigma-022
+status: experimental
+description: DNS tunneling behavior
+author: adam.ring
+date: 2025-07-31T00:00:00.000Z
+tags:
+  - attack.command_and_control
+  - attack.t1071.004
+  - ckc
+  - cyber-kill-chain.command-and-control
+logsource:
+  product: windows
+  category: dns_query
+detection:
+  selection:
+    query: >-
+      DnsEvents | where Name has_any (".xyz", ".pw", ".club", ".info") |
+      summarize count() by Name, bin(TimeGenerated, 5m) | where count_ > 100
+  condition: selection
+falsepositives: null
+level: high
+tactics:
+  - command_and_control
+techniques:
+  - t1071.004
+lifecycle: experimental

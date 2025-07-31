@@ -1,0 +1,42 @@
+title: [Short descriptive rule name]
+id: [unique-rule-id]  # e.g., sigma-031
+status: experimental  # or: testing, production
+description: |
+  [Brief explanation of what the rule detects and why it matters.]
+
+author: [your.name or team name]
+date: [yyyy-mm-dd]
+tags:
+  - attack.txxxx  # Add MITRE technique ID
+  - attack.[tactic]  # Optional, mapped tactic
+  - killchain.[stage]  # Optional, e.g., killchain.reconnaissance
+  - [custom tags]  # E.g., malware.family, data.source, etc.
+
+logsource:
+  product: windows
+  category: process_creation  # or: network_connection, file_access, etc.
+
+detection:
+  selection:
+    query: |
+      [Insert KQL here]
+      E.g.:
+      DeviceProcessEvents
+      | where FileName has "mimikatz"
+      | project TimeGenerated, DeviceName, AccountName, FileName, ProcessCommandLine
+  condition: selection
+
+falsepositives:
+  - [Optional explanation of known benign triggers]
+
+level: high  # or: low, medium, critical
+
+tactics:
+  - Credential Access
+  - Discovery
+
+techniques:
+  - T1003.001
+  - T1087.002
+
+lifecycle: experimental

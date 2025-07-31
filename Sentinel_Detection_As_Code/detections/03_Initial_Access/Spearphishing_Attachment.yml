@@ -1,0 +1,32 @@
+title: Suspicious Email Attachments from External Senders
+id: a1b2c3d4-0001-0001-0001-000000000001
+status: experimental
+description: >-
+  Detects potential spearphishing via executable or script attachments from
+  non-trusted senders
+author: Adam Ring
+date: '2025-07-31'
+tags:
+  - attack.initial_access
+  - attack.t1566.001
+  - cyber-kill-chain.delivery
+logsource:
+  product: microsoft365
+  category: process_creation
+detection:
+  selection:
+    query: >-
+      EmailAttachmentInfo
+
+      | where FileType has_any ("exe", "dll", "js", "vbs", "scr", "bat", "lnk",
+      "hta", "ps1")| where SenderFromDomain !endswith ".microsoft.com"| project
+      TimeGenerated, SenderFromAddress, Subject, FileName, FileType, ReportId
+  condition: selection
+falsepositives:
+  - None known
+level: high
+tactics:
+  - initial_access
+techniques:
+  - t1566.001
+lifecycle: experimental
