@@ -74,6 +74,25 @@ The `.github/workflows/sentinel-deploy.yml` file defines the GitHub Actions pipe
 3. Follow the [YAML Template](rule_creation_guidelines/YAML_Template.txt)
 4. Submit a PR and verify CI passes
 
+# Sentinel Detection-as-Code
+
+This repository contains detection rules and visualizations for Microsoft Sentinel, mapped to both MITRE ATT&CK and the Cyber Kill Chain (CKC). The goal is to enable a structured, lifecycle-aware detection engineering program.
+
+## 📊 Detection Coverage Visuals
+
+### MITRE Tactic Coverage Bar Chart
+![Bar Chart](ckc_coverage_bar.png)
+
+### MITRE Tactic Coverage Donut Chart
+![Donut Chart](ckc_coverage_donut.png)
+
+## 📁 Resources
+
+- `coverage_matrix.csv` — Raw detection mapping
+- `coverage_matrix.xlsx` — Excel version of the matrix
+- `gap_closure_summary.md` — Summary of detection improvements
+
+
 ---
 
 > Managed by the Detection Engineering Team
