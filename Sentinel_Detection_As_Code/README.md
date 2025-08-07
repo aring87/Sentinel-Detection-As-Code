@@ -74,6 +74,21 @@ The `.github/workflows/sentinel-deploy.yml` file defines the GitHub Actions pipe
 3. Follow the [YAML Template](rule_creation_guidelines/YAML_Template.txt)
 4. Submit a PR and verify CI passes
 
----
+## 📊 Detection Coverage Overview
 
-> Managed by the Detection Engineering Team
+This section provides visual coverage of the current detection rules across MITRE ATT&CK tactics and Cyber Kill Chain phases.
+
+### MITRE Tactic Coverage
+![Bar Chart](docs/ckc_coverage_bar.png)
+
+### CKC Distribution
+![Donut Chart](docs/ckc_coverage_donut.png)
+
+### 📈 Coverage Matrix
+
+- [coverage_matrix.xlsx](docs/coverage_matrix.xlsx)
+- [coverage_matrix.csv](docs/coverage_matrix.csv)
+
+### 📄 Gap Closure Summary
+
+- [gap_closure_summary.md](docs/gap_closure_summary.md)
