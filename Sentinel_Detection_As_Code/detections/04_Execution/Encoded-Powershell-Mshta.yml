@@ -1,0 +1,25 @@
+title: Encoded PowerShell in mshta Execution
+id: dodea-sig-025-encoded-powershell-mshta
+status: experimental
+description: Detects mshta executing encoded PowerShell payloads.
+author: Adam Ring
+date: '2025-08-07'
+tags:
+- attack.execution
+- attack.t1218.005
+- ckc.installation
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    query: DeviceProcessEvents | where FileName =~ 'mshta.exe' and ProcessCommandLine has 'powershell -enc'
+  condition: selection
+falsepositives:
+- None known
+level: medium
+tactics:
+- execution
+techniques:
+- t1218
+lifecycle: experimental
