@@ -1,0 +1,25 @@
+title: DNS Tunneling Using Iodine
+id: dodea-sig-033-dns-tunnel-iodine
+status: experimental
+description: Detects DNS tunneling behavior associated with tools like Iodine.
+author: Adam Ring
+date: '2025-08-07'
+tags:
+- attack.command_and_control
+- attack.t1071.004
+- ckc.command-and-control
+logsource:
+  product: windows
+  category: network_connection
+detection:
+  selection:
+    query: DeviceNetworkEvents | where RemotePort == 53 and InitiatingProcessFileName has 'iodine'
+  condition: selection
+falsepositives:
+- None known
+level: medium
+tactics:
+- command_and_control
+techniques:
+- t1071
+lifecycle: experimental
