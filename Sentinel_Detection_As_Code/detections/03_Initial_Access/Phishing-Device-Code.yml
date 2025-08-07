@@ -1,0 +1,25 @@
+title: Phishing Email Link Using Device Code Flow
+id: dodea-sig-024-phishing-device-code
+status: experimental
+description: Detects phishing links leading to device code flow abuse in Azure AD.
+author: Adam Ring
+date: '2025-08-07'
+tags:
+- attack.initial_access
+- attack.t1566.002
+- ckc.delivery
+logsource:
+  product: m365
+  service: email
+detection:
+  selection:
+    query: EmailUrlInfo | where Url has 'microsoft.com/devicelogin'
+  condition: selection
+falsepositives:
+- None known
+level: medium
+tactics:
+- initial_access
+techniques:
+- t1566
+lifecycle: experimental
