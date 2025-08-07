@@ -1,0 +1,25 @@
+title: LSASS Access Dumped with Mimikatz
+id: dodea-sig-029-lsass-dump-mimikatz
+status: experimental
+description: Detects LSASS memory access often associated with credential dumping tools like Mimikatz.
+author: Adam Ring
+date: '2025-08-07'
+tags:
+- attack.credential_access
+- attack.t1003.001
+- ckc.actions-on-objectives
+logsource:
+  product: windows
+  category: process_access
+detection:
+  selection:
+    query: DeviceProcessEvents | where ProcessCommandLine has 'sekurlsa' or ProcessCommandLine has 'lsass'
+  condition: selection
+falsepositives:
+- None known
+level: medium
+tactics:
+- credential_access
+techniques:
+- t1003
+lifecycle: experimental
