@@ -1,0 +1,11 @@
+MITRE Tactic,Technique Count
+Reconnaissance,3
+Initial Access,4
+Execution,5
+Privilege Escalation,1
+Defense Evasion,2
+Credential Access,3
+Discovery,2
+Collection,1
+Command and Control,3
+Exfiltration,1
