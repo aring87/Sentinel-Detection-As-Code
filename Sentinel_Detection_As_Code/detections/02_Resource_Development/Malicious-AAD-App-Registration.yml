@@ -1,0 +1,25 @@
+title: Malicious Azure AD Application Registration
+id: dodea-sig-023-malicious-aad-app-registration
+status: experimental
+description: Detects potentially malicious Azure AD application registrations.
+author: Adam Ring
+date: '2025-08-07'
+tags:
+- attack.resource_development
+- attack.t1587.006
+- ckc.resource-development
+logsource:
+  product: azure
+  service: auditlogs
+detection:
+  selection:
+    query: AuditLogs | where OperationName has 'Add application'
+  condition: selection
+falsepositives:
+- None known
+level: medium
+tactics:
+- resource_development
+techniques:
+- t1587
+lifecycle: experimental
