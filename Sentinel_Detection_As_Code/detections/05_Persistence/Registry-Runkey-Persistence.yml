@@ -1,0 +1,25 @@
+title: Registry RunKey Persistence
+id: dodea-sig-026-registry-runkey-persistence
+status: experimental
+description: Detects persistence via Registry Run Key modification.
+author: Adam Ring
+date: '2025-08-07'
+tags:
+- attack.persistence
+- attack.t1547.001
+- ckc.installation
+logsource:
+  product: windows
+  category: registry_event
+detection:
+  selection:
+    query: DeviceRegistryEvents | where RegistryKey endswith 'Run' and RegistryValueName has_any ('Updater', 'ServiceHost')
+  condition: selection
+falsepositives:
+- None known
+level: medium
+tactics:
+- persistence
+techniques:
+- t1547
+lifecycle: experimental
