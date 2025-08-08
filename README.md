@@ -79,10 +79,10 @@ The `.github/workflows/sentinel-deploy.yml` file defines the GitHub Actions pipe
 This section provides visual coverage of the current detection rules across MITRE ATT&CK tactics and Cyber Kill Chain phases.
 
 ### MITRE Tactic Coverage
-![Bar Chart](Docs/ckc_coverage_bar.png)
+![Bar Chart](Sentinel_Detection_As_Code/Docs/ckc_coverage_bar.png)
 
 ### CKC Distribution
-![Donut Chart](Docs/ckc_coverage_donut.png)
+![Donut Chart](Sentinel_Detection_As_Code/Docs/ckc_coverage_donut.png)
 
 ### 📈 Coverage Matrix
 
