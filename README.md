@@ -86,9 +86,9 @@ This section provides visual coverage of the current detection rules across MITR
 
 ### 📈 Coverage Matrix
 
-- [coverage_matrix.xlsx](Docs/coverage_matrix.xlsx)
-- [coverage_matrix.csv](Docs/coverage_matrix.csv)
+- [coverage_matrix.xlsx](Sentinel_Detection_As_Code/Docs/coverage_matrix.xlsx)
+- [coverage_matrix.csv](Sentinel_Detection_As_Code/Docs/coverage_matrix.csv)
 
 ### 📄 Gap Closure Summary
 
-- [gap_closure_summary.md](Docs/gap_closure_summary.md)
+- [gap_closure_summary.md](Sentinel_Detection_As_Code/Docs/gap_closure_summary.md)
