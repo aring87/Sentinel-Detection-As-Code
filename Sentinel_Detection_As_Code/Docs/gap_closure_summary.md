@@ -17,7 +17,7 @@ This summary outlines the improvements made to Sentinel detection rules by incor
 | Command and Control    | 3                |
 | Exfiltration           | 1                |
 
-These rules strengthen your environment’s detection maturity by:
+These rules strengthen the environment’s detection maturity by:
 - Covering gaps in earlier phases like Recon and Initial Access
 - Increasing visibility into Execution and C2 channels
 - Improving alignment with MITRE ATT&CK for threat modeling
