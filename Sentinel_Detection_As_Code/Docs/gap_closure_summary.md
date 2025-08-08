@@ -1,6 +1,6 @@
 # Gap Closure Summary
 
-This summary outlines the improvements made to your Sentinel detection rules by incorporating 14 new detections across various CKC and MITRE ATT&CK phases.
+This summary outlines the improvements made to Sentinel detection rules by incorporating 14 new detections across various CKC and MITRE ATT&CK phases.
 
 ## ✅ Detections Added by Phase
 
