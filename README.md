@@ -85,7 +85,7 @@ Use these resources for investigation, escalation, and operational alignment:
 
 ## Executive Documents
 
-Core program artifacts are located in [`docs/00_executive/`](docs/00_executive/):
+Core program artifacts are located in [`docs/00_executive/`](docs/executive/):
 
 - [Detection Engineering Proposal (DOCX)](docs/executive/detection-engineering-proposal.docx)
 - [Detection Engineering Proposal (PDF)](docs/executive/detection-engineering-proposal.pdf)
