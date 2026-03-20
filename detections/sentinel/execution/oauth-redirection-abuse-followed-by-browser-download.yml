@@ -1,0 +1,60 @@
+title: OAuth Redirection Abuse Followed by Browser Download
+id: SENT-EXEC-0006
+status: experimental
+description: Detects suspicious OAuth authorization URL click activity followed closely by browser-driven file download or payload execution, aligned to Microsoft's March 2026 reporting on OAuth redirection abuse used for phishing and malware delivery.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: email_and_endpoint
+  service: url_clicks_and_process_creation
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  let suspiciousClicks = UrlClickEvents
+  | where ActionType in ("ClickAllowed","UrlScanInProgress","UrlErrorPage") or IsClickedThrough != "0"
+  | where UrlChain has_any ("login.microsoftonline.com","oauth2","authorize","common/oauth2")
+  | where UrlChain has_any ("prompt=none","redirect_uri=")
+  | extend AccountUpn = tolower(AccountUpn)
+  | project ClickTime=Timestamp, AccountUpn, Url, UrlChain;
+  let suspiciousExec = DeviceProcessEvents
+  | where FileName in~ ("powershell.exe","pwsh.exe","cmd.exe","mshta.exe","rundll32.exe","wscript.exe","cscript.exe","msiexec.exe")
+  | where ProcessCommandLine has_any ("http://","https://","download","curl ","iwr ","irm ","/i ")
+  | extend AccountUpn = tolower(InitiatingProcessAccountUpn)
+  | project ExecTime=Timestamp, DeviceName, AccountUpn, FileName, ProcessCommandLine;
+  suspiciousClicks
+  | join kind=inner suspiciousExec on AccountUpn
+  | where ExecTime between (ClickTime .. ClickTime + 2h)
+  | project ClickTime, ExecTime, AccountUpn, DeviceName, Url, UrlChain, FileName, ProcessCommandLine
+severity: high
+risk_score: 86
+tactics:
+  - Initial Access
+  - Execution
+techniques:
+  - T1566.002
+  - T1204
+kill_chain_phases:
+  - Delivery
+  - Execution
+data_sources:
+  - UrlClickEvents
+  - DeviceProcessEvents
+falsepositives:
+  - Legitimate admin download/install workflows shortly after OAuth testing
+triage:
+  - Confirm the redirect target and whether a file was downloaded automatically
+  - Review browser and endpoint download history
+  - Determine whether the downloaded content launched via LOLBins or installers
+  - Check whether the user interacted with a phishing or fake verification workflow
+validation:
+  - Test in a lab with safe downloads after benign OAuth-style links
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.initial-access
+  - attack.execution
+  - oauth
+  - phishing
+  - malware-delivery
+  - sentinel

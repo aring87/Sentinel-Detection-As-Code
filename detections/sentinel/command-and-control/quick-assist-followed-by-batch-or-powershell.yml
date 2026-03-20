@@ -1,0 +1,55 @@
+title: Quick Assist Followed by Batch or PowerShell Execution
+id: SENT-C2-0006
+status: stable
+description: Detects Quick Assist activity followed by batch script or PowerShell execution, aligned to Microsoft reporting that Storm-1811 used Quick Assist in tech-support scams and then executed batch scripts and follow-on tooling.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: windows
+  service: process_creation
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  let quickAssist = DeviceProcessEvents
+  | where FileName =~ "quickassist.exe"
+  | project DeviceId, DeviceName, QATime=Timestamp, QAUser=InitiatingProcessAccountName, QAUpn=tolower(InitiatingProcessAccountUpn), QACommand=ProcessCommandLine;
+  let followOn = DeviceProcessEvents
+  | where FileName in~ ("powershell.exe","pwsh.exe","cmd.exe")
+  | where ProcessCommandLine has_any (".bat",".cmd","-enc","downloadstring","curl ","iwr ","irm ","frombase64string")
+  | project DeviceId, FOTime=Timestamp, FOUser=InitiatingProcessAccountName, FOUpn=tolower(InitiatingProcessAccountUpn), FileName, ProcessCommandLine;
+  quickAssist
+  | join kind=inner followOn on DeviceId
+  | where FOTime between (QATime .. QATime + 60m)
+  | project DeviceName, QATime, QAUser, QAUpn, QACommand, FOTime, FOUser, FOUpn, FileName, ProcessCommandLine
+severity: high
+risk_score: 85
+tactics:
+  - Command and Control
+  - Execution
+techniques:
+  - T1219
+  - T1059
+kill_chain_phases:
+  - Command and Control
+  - Execution
+data_sources:
+  - DeviceProcessEvents
+falsepositives:
+  - Approved remote support sessions with scripted remediation
+triage:
+  - Confirm whether the user requested or expected remote support
+  - Review the batch or PowerShell payload executed after Quick Assist
+  - Look for follow-on downloaders, RMM tools, or persistence
+  - Check helpdesk records to distinguish sanctioned support from social engineering
+validation:
+  - Simulate a legitimate Quick Assist support session and compare with scripted post-session activity
+lifecycle: testing
+owner: Detection Engineering
+tags:
+  - attack.command-and-control
+  - attack.execution
+  - quick-assist
+  - t1219
+  - t1059
+  - sentinel

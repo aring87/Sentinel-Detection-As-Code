@@ -1,0 +1,57 @@
+title: Teams External Contact Followed by Quick Assist
+id: SENT-INIT-0006
+status: experimental
+description: Detects possible social-engineering chains where external Teams contact activity is followed by Quick Assist usage, aligned to Microsoft reporting that attackers used Microsoft Teams to impersonate IT/help desk before Quick Assist abuse.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: m365_and_endpoint
+  service: office_and_process
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  let teamsActivity = OfficeActivity
+  | where OfficeWorkload =~ "MicrosoftTeams"
+  | where Operation has_any ("MessageSent","ChatCreated","CallStarted","MeetingParticipantAdded")
+  | extend UserUpn = tolower(UserId)
+  | where tostring(Parameters) has_any ("external","guest","federated")
+  | project TeamsTime=TimeGenerated, UserUpn, Operation, Parameters;
+  let qaUsage = DeviceProcessEvents
+  | where FileName =~ "quickassist.exe"
+  | extend UserUpn = tolower(InitiatingProcessAccountUpn)
+  | project QATime=Timestamp, DeviceName, UserUpn, ProcessCommandLine;
+  teamsActivity
+  | join kind=inner qaUsage on UserUpn
+  | where QATime between (TeamsTime .. TeamsTime + 2h)
+  | project TeamsTime, QATime, UserUpn, DeviceName, Operation, Parameters, ProcessCommandLine
+severity: medium
+risk_score: 72
+tactics:
+  - Initial Access
+techniques:
+  - T1566
+  - T1219
+kill_chain_phases:
+  - Delivery
+  - Exploitation
+data_sources:
+  - OfficeActivity
+  - DeviceProcessEvents
+falsepositives:
+  - Legitimate external Teams collaboration followed by support activity
+triage:
+  - Review whether the user interacted with an external or guest Teams contact shortly before Quick Assist use
+  - Confirm whether the contact claimed to be IT/help desk
+  - Check for script execution, RMM tools, or downloads after Quick Assist
+  - Validate whether this matches any known scam or helpdesk workflow
+validation:
+  - Tune against normal external Teams collaboration patterns in your environment
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.initial-access
+  - teams
+  - quick-assist
+  - social-engineering
+  - sentinel

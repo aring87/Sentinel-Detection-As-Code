@@ -1,0 +1,46 @@
+title: Graph Mail Search Keyword Burst
+id: SENT-COLL-0004
+status: experimental
+description: Detects bursts of Microsoft Graph mail search or mail access activity that may indicate post-compromise searching for sensitive terms such as credentials, secrets, or admin information, aligned to Microsoft's Storm-2372 reporting.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: m365
+  service: cloud_app
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  CloudAppEvents
+  | where Application == "Microsoft Graph"
+  | where ActionType has_any ("SearchQueryPerformed","MailItemsAccessed","MessageBind")
+  | extend User = tostring(coalesce(AccountDisplayName, AccountObjectId))
+  | summarize ActionCount=count(), Actions=make_set(ActionType,10) by bin(TimeGenerated, 30m), User, Application
+  | where ActionCount >= 20
+severity: medium
+risk_score: 73
+tactics:
+  - Collection
+techniques:
+  - T1114
+kill_chain_phases:
+  - Collection
+data_sources:
+  - CloudAppEvents
+falsepositives:
+  - Migration tools
+  - eDiscovery or approved admin/search workflows
+triage:
+  - Validate whether the user or app normally performs high-volume Graph mail searches
+  - Check for nearby device code sign-ins, consent grants, or suspicious app activity
+  - Determine whether mailbox searches were targeted at sensitive terms or high-value mailboxes
+  - Review whether mail export or forwarding occurred after the burst
+validation:
+  - Tune with normal mail client and admin-search behavior in your tenant
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.collection
+  - graph
+  - mail-search
+  - sentinel

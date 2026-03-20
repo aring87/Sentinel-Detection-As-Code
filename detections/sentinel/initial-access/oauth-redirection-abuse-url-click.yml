@@ -1,0 +1,48 @@
+title: OAuth Redirection Abuse URL Click
+id: SENT-INIT-0005
+status: stable
+description: Detects suspicious OAuth authorization links clicked by users where parameters suggest redirection abuse, aligned to Microsoft reporting on phishing campaigns that abuse prompt=none, invalid scopes, and attacker-controlled redirect URIs.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: email_and_browser
+  service: url_clicks
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  UrlClickEvents
+  | where ActionType in ("ClickAllowed","UrlScanInProgress","UrlErrorPage") or IsClickedThrough != "0"
+  | where UrlChain has_any ("login.microsoftonline.com","oauth2","authorize","common/oauth2")
+  | where UrlChain has_any ("prompt=none","response_type=code","redirect_uri=")
+  | where UrlChain has_any ("invalid_scope","scope=")
+  | project Timestamp, AccountUpn, ActionType, Url, UrlChain, NetworkMessageId
+severity: high
+risk_score: 82
+tactics:
+  - Initial Access
+techniques:
+  - T1566.002
+kill_chain_phases:
+  - Delivery
+data_sources:
+  - UrlClickEvents
+falsepositives:
+  - Rare legitimate OAuth testing workflows
+  - Internal developer auth troubleshooting
+triage:
+  - Review the full URL chain and redirect target
+  - Determine whether the message used a collaboration, e-signature, or meeting lure
+  - Identify whether the clicked link redirected to an attacker-controlled domain or auto-download path
+  - Check for nearby device code, risky sign-in, or browser download activity for the same user
+validation:
+  - Test with a benign OAuth authorize URL in a lab mailbox and tune on target parameters
+lifecycle: testing
+owner: Detection Engineering
+tags:
+  - attack.initial-access
+  - attack.t1566.002
+  - oauth
+  - redirection-abuse
+  - phishing
+  - sentinel

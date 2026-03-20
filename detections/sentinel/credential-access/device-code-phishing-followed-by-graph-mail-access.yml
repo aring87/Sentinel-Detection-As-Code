@@ -1,0 +1,60 @@
+title: Device Code Phishing Followed by Graph Mail Access
+id: SENT-CRED-0004
+status: stable
+description: Detects successful device code authentication followed by Microsoft Graph mail-access activity for the same user, aligned to Microsoft reporting that Storm-2372 used phished device code sessions to search and collect email via Graph.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: entra_id
+  service: sign_in_and_cloud_app
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  let deviceCodeSignins = SigninLogs
+  | where AuthenticationProtocol =~ "deviceCode"
+  | where ResultType == 0
+  | extend UserPrincipalName = tolower(UserPrincipalName)
+  | project SigninTime=TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName;
+  let graphMailAccess = CloudAppEvents
+  | where Application == "Microsoft Graph"
+  | where ActionType has_any ("MailItemsAccessed","SearchQueryPerformed","MessageBind","FileDownloaded","MailAccess")
+  | extend UserPrincipalName = tolower(coalesce(AccountObjectId, AccountDisplayName, tostring(RawEventData.UserId)))
+  | project GraphTime=TimeGenerated, UserPrincipalName, ActionType, Application, RawEventData;
+  deviceCodeSignins
+  | join kind=inner graphMailAccess on UserPrincipalName
+  | where GraphTime between (SigninTime .. SigninTime + 4h)
+  | project SigninTime, GraphTime, UserPrincipalName, IPAddress, AppDisplayName, ActionType, Application, RawEventData
+severity: high
+risk_score: 88
+tactics:
+  - Credential Access
+  - Collection
+techniques:
+  - T1114
+  - T1528
+kill_chain_phases:
+  - Exploitation
+  - Collection
+data_sources:
+  - SigninLogs
+  - CloudAppEvents
+falsepositives:
+  - Legitimate device code workflows using Graph-based mail clients
+  - Approved admin or migration tooling
+triage:
+  - Confirm whether the user expected device code authentication
+  - Review Graph activity volume and operation types after sign-in
+  - Determine whether the session accessed unusual mailboxes or performed keyword searches
+  - Check for follow-on inbox rule creation, exfiltration, or lateral phishing from the account
+validation:
+  - Test with a lab Graph mail workflow after device code authentication
+lifecycle: testing
+owner: Detection Engineering
+tags:
+  - attack.credential-access
+  - attack.collection
+  - graph
+  - device-code-phishing
+  - mail-access
+  - sentinel
