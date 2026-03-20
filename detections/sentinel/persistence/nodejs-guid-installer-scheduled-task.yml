@@ -1,0 +1,59 @@
+title: Node.js Installer or GUID-Named App Followed by Scheduled Task Persistence
+id: SENT-PERS-0006
+status: experimental
+description: Detects suspicious installer or Node.js/Electron-style application execution followed by scheduled task persistence, intended to help surface freeware-masquerading threats such as JustAskJacky-style behavior.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: windows
+  service: process_creation
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  let suspiciousInstall = DeviceProcessEvents
+  | where FileName in~ ("node.exe","msiexec.exe","setup.exe","install.exe")
+     or ProcessCommandLine matches regex @"\{[0-9a-fA-F-]{36}\}"
+  | project DeviceId, DeviceName, InstallTime=Timestamp, InstallCmd=ProcessCommandLine, InitiatingProcessAccountName;
+  let persistence = DeviceProcessEvents
+  | where FileName in~ ("schtasks.exe","powershell.exe")
+  | where ProcessCommandLine has_any ("/Create","Register-ScheduledTask","New-ScheduledTask")
+  | project DeviceId, PersistTime=Timestamp, PersistCmd=ProcessCommandLine;
+  suspiciousInstall
+  | join kind=inner persistence on DeviceId
+  | where PersistTime between (InstallTime .. InstallTime + 60m)
+  | project DeviceName, InitiatingProcessAccountName, InstallTime, InstallCmd, PersistTime, PersistCmd
+severity: medium
+risk_score: 70
+tactics:
+  - Persistence
+  - Execution
+techniques:
+  - T1053.005
+  - T1204
+kill_chain_phases:
+  - Persistence
+  - Execution
+data_sources:
+  - DeviceProcessEvents
+falsepositives:
+  - Legitimate installers that register scheduled tasks
+  - Approved Electron or Node.js application setups
+triage:
+  - Validate the software package name, signer, source URL, and installation path
+  - Determine whether the application is approved or masquerading as freeware/utility software
+  - Review the created scheduled task, payload path, and execution frequency
+  - Check whether the software was downloaded from suspicious SEO-poisoned or typosquatted sites
+validation:
+  - Test with a benign installer that creates a scheduled task and tune for approved software
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.persistence
+  - attack.execution
+  - attack.t1053.005
+  - attack.t1204
+  - justaskjacky
+  - installer
+  - nodejs
+  - sentinel

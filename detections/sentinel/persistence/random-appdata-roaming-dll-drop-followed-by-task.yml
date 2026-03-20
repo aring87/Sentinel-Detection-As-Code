@@ -1,0 +1,55 @@
+title: Random AppData Roaming DLL Drop Followed by Scheduled Task
+id: SENT-PERS-0005
+status: experimental
+description: Detects DLL creation in suspicious randomly named AppData\Roaming folders followed by scheduled task creation, aligned to Red Canary reporting on CleanUpLoader execution chains.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: windows
+  service: file_and_process
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  let dllDrops = DeviceFileEvents
+  | where ActionType in~ ("FileCreated","FileModified")
+  | where FolderPath matches regex @"\\Users\\[^\\]+\\AppData\\Roaming\\[A-Za-z0-9]{10,16}[^\\]?\\"
+  | where FileName endswith ".dll"
+  | project DeviceId, DeviceName, DropTime=Timestamp, FolderPath, FileName, InitiatingProcessAccountName;
+  let taskCreates = DeviceProcessEvents
+  | where FileName =~ "schtasks.exe"
+  | where ProcessCommandLine has "/Create"
+  | project DeviceId, TaskTime=Timestamp, TaskCmd=ProcessCommandLine, InitiatingProcessAccountName;
+  dllDrops
+  | join kind=inner taskCreates on DeviceId
+  | where TaskTime between (DropTime .. DropTime + 30m)
+  | project DeviceName, DropTime, FolderPath, FileName, TaskTime, TaskCmd, InitiatingProcessAccountName
+severity: high
+risk_score: 84
+tactics:
+  - Persistence
+techniques:
+  - T1053.005
+  - T1547
+kill_chain_phases:
+  - Persistence
+data_sources:
+  - DeviceFileEvents
+  - DeviceProcessEvents
+falsepositives:
+  - Rare software installers writing DLLs to user-profile subfolders before task creation
+triage:
+  - Review the dropped DLL path and whether the folder name appears random
+  - Determine which executable created the DLL and whether it masqueraded as a known utility
+  - Review the scheduled task created shortly afterward
+  - Check for outbound connections or loader behavior after persistence was established
+validation:
+  - Simulate a benign DLL drop and scheduled task workflow in a lab for tuning
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.persistence
+  - attack.t1053.005
+  - cleanup-loader
+  - appdata
+  - sentinel

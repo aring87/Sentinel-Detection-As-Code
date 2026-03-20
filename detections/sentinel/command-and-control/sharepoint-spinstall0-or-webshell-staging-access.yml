@@ -1,0 +1,51 @@
+title: SharePoint SPInstall0 or Suspicious Setup Artifact Access
+id: SENT-C2-0005
+status: experimental
+description: Detects suspicious access to SharePoint setup or staging artifact names such as SPInstall0 that may indicate web-shell staging, malicious package deployment, or compromise of SharePoint-related infrastructure.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: cloud
+  service: file_activity
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  OfficeActivity
+  | where Operation has_any ("FileAccessed","FileDownloaded","FileModified","FileUploaded")
+  | where OfficeObjectId has_any ("SPInstall0","spinstall0","setup.aspx","install.aspx","web.config","layouts")
+     or SourceRelativeUrl has_any ("SPInstall0","spinstall0","setup.aspx","install.aspx","web.config","layouts")
+  | project TimeGenerated, UserId, Operation, OfficeObjectId, SourceRelativeUrl, Site_Url, ClientIP
+severity: high
+risk_score: 79
+tactics:
+  - Command and Control
+  - Persistence
+techniques:
+  - T1505.003
+  - T1105
+kill_chain_phases:
+  - Command and Control
+  - Persistence
+data_sources:
+  - OfficeActivity
+falsepositives:
+  - Legitimate SharePoint administration or upgrade activity
+triage:
+  - Validate whether the activity is tied to approved SharePoint administration
+  - Review the accessed object names and whether they indicate setup, install, or web-shell staging artifacts
+  - Check for subsequent command execution, suspicious uploads, or remote management activity
+  - Correlate with admin sign-ins, privilege changes, or suspicious app registration activity
+validation:
+  - Test in a lab SharePoint environment with benign setup-related file access patterns
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.command-and-control
+  - attack.persistence
+  - attack.t1505.003
+  - attack.t1105
+  - sharepoint
+  - spinstall0
+  - webshell
+  - sentinel
