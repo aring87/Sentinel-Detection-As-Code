@@ -63,9 +63,9 @@ Use these resources to build, review, validate, and maintain detection content:
 Use these resources for investigation, escalation, and operational alignment:
 
 - [Triage Guides](content/triage-guides/)
-- [SOC and Incident Response Alignment](docs/02_process/soc-incident-response-alignment.md)
-- [Alert Escalation Guidance](docs/02_process/alert-escalation-guidance.md)
-- [Detection Feedback Loop](docs/02_process/detection-feedback-loop.md)
+- [SOC and Incident Response Alignment](docs/process/soc-incident-response-alignment.md)
+- [Alert Escalation Guidance](docs/process/alert-escalation-guidance.md)
+- [Detection Feedback Loop](docs/process/detection-feedback-loop.md)
 - [Coverage](coverage/)
 
 ---
@@ -87,10 +87,10 @@ Use these resources for investigation, escalation, and operational alignment:
 
 Core program artifacts are located in [`docs/00_executive/`](docs/00_executive/):
 
-- [Detection Engineering Proposal (DOCX)](docs/00_executive/detection-engineering-proposal.docx)
-- [Detection Engineering Proposal (PDF)](docs/00_executive/detection-engineering-proposal.pdf)
-- [Program Charter](docs/00_executive/program-charter.md)
-- [Roadmap](docs/00_executive/roadmap.md)
+- [Detection Engineering Proposal (DOCX)](docs/executive/detection-engineering-proposal.docx)
+- [Detection Engineering Proposal (PDF)](docs/executive/detection-engineering-proposal.pdf)
+- [Program Charter](docs/executive/program-charter.md)
+- [Roadmap](docs/executive/roadmap.md)
 
 ---
 
@@ -118,7 +118,7 @@ Detection content should move through a controlled lifecycle:
 
 See:
 
-- [`docs/02_process/detection-lifecycle.md`](docs/02_process/detection-lifecycle.md)
+- [`docs/02_process/detection-lifecycle.md`](docs/process/detection-lifecycle.md)
 - [`governance/lifecycle-standard.md`](governance/lifecycle-standard.md)
 
 ---
