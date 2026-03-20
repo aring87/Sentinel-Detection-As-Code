@@ -36,16 +36,16 @@ This repository is designed to support that full lifecycle.
 ### Leadership
 Use these documents for program intent, operating model, roadmap, and reporting:
 
-- [Executive Documents](docs/00_executive/)
-- [Program Charter](docs/00_executive/program-charter.md)
-- [Roadmap](docs/00_executive/roadmap.md)
-- [Mission](docs/01_strategy/mission.md)
-- [Scope](docs/01_strategy/scope.md)
-- [Maturity Model](docs/01_strategy/maturity-model.md)
-- [Metrics Catalog](docs/04_reporting/metrics-catalog.md)
-- [Quarterly Program Review Template](docs/04_reporting/quarterly-program-review-template.md)
-- [Annual Roadmap Review](docs/04_reporting/annual-roadmap-review.md)
-- [Gap Analysis](docs/04_reporting/gap-analysis.md)
+- [Executive Documents](docs/executive/)
+- [Program Charter](docs/executive/program-charter.md)
+- [Roadmap](docs/executive/roadmap.md)
+- [Mission](docs/strategy/mission.md)
+- [Scope](docs/strategy/scope.md)
+- [Maturity Model](docs/strategy/maturity-model.md)
+- [Metrics Catalog](docs/reporting/metrics-catalog.md)
+- [Quarterly Program Review Template](docs/reporting/quarterly-program-review-template.md)
+- [Annual Roadmap Review](docs/reporting/annual-roadmap-review.md)
+- [Gap Analysis](docs/reporting/gap-analysis.md)
 
 ### Detection Engineers
 Use these resources to build, review, validate, and maintain detection content:
