@@ -1,0 +1,49 @@
+title: Browser Extension Install from Temp or User Profile
+id: SENT-BROW-0001
+status: experimental
+description: Detects possible browser extension installation or staging from temporary or user-writable locations, aligned to Red Canary reporting on browser-extension threats and browser-centric compromise.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: windows
+  service: file_creation
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  DeviceFileEvents
+  | where FolderPath has "\\User Data\\Default\\Extensions\\"
+     or FolderPath has "\\User Data\\Profile "
+  | where InitiatingProcessFileName in~ ("chrome.exe","msedge.exe","brave.exe","firefox.exe","explorer.exe","msiexec.exe")
+  | where FolderPath has_any ("\\Downloads\\","\\Temp\\","\\AppData\\Local\\","\\AppData\\Roaming\\")
+  | project Timestamp,DeviceName,InitiatingProcessAccountName,InitiatingProcessFileName,FileName,FolderPath
+severity: medium
+risk_score: 60
+tactics:
+  - Persistence
+  - Credential Access
+techniques:
+  - T1176
+kill_chain_phases:
+  - Persistence
+data_sources:
+  - DeviceFileEvents
+falsepositives:
+  - Legitimate browser extension installs by users
+  - Managed extension deployment
+triage:
+  - Review the extension path, extension ID, and whether the browser is enterprise-managed
+  - Validate whether the extension is on the approved list
+  - Check for recent browser updates, compromised extension reports, or suspicious outbound requests
+validation:
+  - Install a benign test extension in a lab and compare path patterns
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.persistence
+  - attack.credential-access
+  - attack.t1176
+  - browser-extension
+  - chrome
+  - edge
+  - sentinel

@@ -1,0 +1,59 @@
+title: Quick Assist or RMM Followed by Script Execution
+id: SENT-C2-0004
+status: stable
+description: Detects Quick Assist or common RMM tool execution followed by suspicious scripting activity, aligned to Red Canary reporting that RMM tools are increasingly used as the payload of choice in phishing and social-engineering campaigns.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: windows
+  service: process_creation
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  let RMM=dynamic(["quickassist.exe","anydesk.exe","teamviewer.exe","screenconnect.clientservice.exe","screenconnect.windowsclient.exe","simplehelp.exe","netsupportmanager.exe","logmeinrescue.exe","pdqconnectagent.exe","ateraagent.exe","itagent.exe"]);
+  let ScriptBins=dynamic(["powershell.exe","pwsh.exe","cmd.exe","wscript.exe","cscript.exe","mshta.exe","rundll32.exe"]);
+  let rmmEvents=DeviceProcessEvents
+  | where FileName in~ (RMM)
+  | project DeviceId,DeviceName,RMMTime=Timestamp,RMMUser=InitiatingProcessAccountName,RMMProcess=FileName,RMMCmd=ProcessCommandLine;
+  let scriptEvents=DeviceProcessEvents
+  | where FileName in~ (ScriptBins)
+  | where ProcessCommandLine has_any ("-enc","downloadstring","curl ","iwr ","irm ","iex ","frombase64string","http://","https://")
+  | project DeviceId,ScriptTime=Timestamp,ScriptUser=InitiatingProcessAccountName,ScriptProcess=FileName,ScriptCmd=ProcessCommandLine;
+  rmmEvents
+  | join kind=inner scriptEvents on DeviceId
+  | where ScriptTime between (RMMTime .. RMMTime + 30m)
+  | project DeviceName,RMMTime,RMMUser,RMMProcess,RMMCmd,ScriptTime,ScriptUser,ScriptProcess,ScriptCmd
+severity: high
+risk_score: 82
+tactics:
+  - Command and Control
+  - Execution
+techniques:
+  - T1219
+  - T1059
+kill_chain_phases:
+  - Command and Control
+  - Execution
+data_sources:
+  - DeviceProcessEvents
+falsepositives:
+  - Approved remote support sessions
+  - Helpdesk or infrastructure administration using sanctioned RMM tools
+triage:
+  - Confirm whether the RMM tool is approved in your environment
+  - Review the parent/child process chain and whether scripting began shortly after remote session establishment
+  - Validate whether the affected user requested support or was targeted by a social-engineering lure
+  - Check for persistence, credential theft, or exfiltration after the RMM session
+validation:
+  - Simulate a sanctioned Quick Assist session and compare to suspicious script-launch behavior
+lifecycle: testing
+owner: Detection Engineering
+tags:
+  - attack.command-and-control
+  - attack.execution
+  - attack.t1219
+  - attack.t1059
+  - rmm
+  - quickassist
+  - sentinel

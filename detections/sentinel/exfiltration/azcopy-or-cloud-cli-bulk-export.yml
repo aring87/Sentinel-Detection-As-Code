@@ -1,0 +1,50 @@
+title: AzCopy or Cloud CLI Bulk Export Activity
+id: SENT-EXFIL-0004
+status: stable
+description: Detects potential bulk cloud-storage exfiltration via AzCopy, AWS CLI, or gsutil from endpoints, aligned to Red Canary reporting on Data from Cloud Storage and cloud-native exfiltration.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-20
+logsource:
+  product: windows
+  service: process_creation
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  DeviceProcessEvents
+  | where FileName in~ ("azcopy.exe","azcopy","aws.exe","aws","gsutil.exe","gsutil")
+  | where ProcessCommandLine has_any ("copy ","sync ","cp ","s3://","blob.core.windows.net","storage","gs://","download","upload")
+  | summarize ExecCount=count(),Commands=make_set(ProcessCommandLine,20),FirstSeen=min(Timestamp),LastSeen=max(Timestamp) by DeviceName,InitiatingProcessAccountName,FileName
+  | where ExecCount >= 3
+severity: high
+risk_score: 80
+tactics:
+  - Exfiltration
+techniques:
+  - T1537
+  - T1567
+kill_chain_phases:
+  - Exfiltration
+data_sources:
+  - DeviceProcessEvents
+falsepositives:
+  - Approved cloud migration or backup operations
+  - Engineering or DevOps workflows using cloud-native transfer tools
+triage:
+  - Determine whether the user or host is expected to use AzCopy, AWS CLI, or gsutil
+  - Review the destination and whether the activity involved bulk export or sync
+  - Correlate with cloud storage permission changes, public access changes, or archive creation
+  - Check whether sensitive data, secrets, or backups were likely involved
+validation:
+  - Run a benign AzCopy or cloud CLI transfer in a lab and compare command-line shape
+lifecycle: testing
+owner: Detection Engineering
+tags:
+  - attack.exfiltration
+  - attack.t1537
+  - attack.t1567
+  - azcopy
+  - aws-cli
+  - gsutil
+  - cloud-storage
+  - sentinel
