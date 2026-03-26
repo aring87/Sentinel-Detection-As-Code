@@ -1,5 +1,5 @@
 title: Suspicious PowerShell Encoded Command Execution
-id: SENT-EXEC-0001
+id: SENT-EXEC-0003
 status: stable
 description: Detects PowerShell execution with encoded commands that may indicate obfuscation or malicious script execution.
 author: Your Name
