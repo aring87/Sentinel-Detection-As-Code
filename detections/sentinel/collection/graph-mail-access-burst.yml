@@ -1,0 +1,48 @@
+title: Microsoft Graph Mail Access Burst
+id: SENT-COLL-0004
+status: experimental
+description: Detects bursts of Microsoft Graph mail search or mail access activity that may indicate post-compromise mailbox collection or reconnaissance.
+author: Adam Ring
+date: 2026-03-20
+modified: 2026-03-26
+logsource:
+  product: m365
+  service: cloud_app
+platform: microsoft_sentinel
+query_language: kql
+query: |
+  CloudAppEvents
+  | where Application == "Microsoft Graph"
+  | where ActionType has_any ("SearchQueryPerformed","MailItemsAccessed","MessageBind")
+  | extend User = tostring(coalesce(AccountUpn, AccountDisplayName, AccountObjectId))
+  | extend ClientIP = tostring(IPAddress)
+  | summarize ActionCount=count(), Actions=make_set(ActionType,10), IPs=make_set(ClientIP,10) by bin(TimeGenerated, 30m), User, Application
+  | where ActionCount >= 20
+severity: medium
+risk_score: 70
+tactics:
+  - Collection
+techniques:
+  - T1114
+kill_chain_phases:
+  - Collection
+data_sources:
+  - CloudAppEvents
+falsepositives:
+  - Migration tools
+  - eDiscovery, journaling, or approved admin search workflows
+  - Application integrations that legitimately access mail at scale
+triage:
+  - Validate whether the user or application normally performs high-volume Graph mail access
+  - Check for nearby device code sign-ins, consent grants, OAuth abuse, or risky sign-in activity
+  - Determine whether the activity targeted high-value mailboxes or was followed by mail export, forwarding, or download behavior
+validation:
+  - Tune thresholds against known mail clients, admin workflows, and approved tenant applications
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.collection
+  - attack.t1114
+  - graph
+  - mailbox
+  - sentinel

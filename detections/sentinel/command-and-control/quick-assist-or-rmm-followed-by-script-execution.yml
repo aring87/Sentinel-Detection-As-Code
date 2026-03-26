@@ -1,10 +1,10 @@
 title: Quick Assist or RMM Followed by Script Execution
 id: SENT-C2-0004
-status: stable
-description: Detects Quick Assist or common RMM tool execution followed by suspicious scripting activity, aligned to Red Canary reporting that RMM tools are increasingly used as the payload of choice in phishing and social-engineering campaigns.
+status: testing
+description: Detects Quick Assist or common RMM tool execution followed by suspicious scripting activity, a pattern often seen in social-engineering-driven intrusions and hands-on-keyboard operations.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
+modified: 2026-03-26
 logsource:
   product: windows
   service: process_creation
@@ -18,7 +18,7 @@ query: |
   | project DeviceId,DeviceName,RMMTime=Timestamp,RMMUser=InitiatingProcessAccountName,RMMProcess=FileName,RMMCmd=ProcessCommandLine;
   let scriptEvents=DeviceProcessEvents
   | where FileName in~ (ScriptBins)
-  | where ProcessCommandLine has_any ("-enc","downloadstring","curl ","iwr ","irm ","iex ","frombase64string","http://","https://")
+  | where ProcessCommandLine has_any ("-enc","downloadstring","curl ","iwr ","irm ","iex ","frombase64string","http://","https://",".bat",".cmd")
   | project DeviceId,ScriptTime=Timestamp,ScriptUser=InitiatingProcessAccountName,ScriptProcess=FileName,ScriptCmd=ProcessCommandLine;
   rmmEvents
   | join kind=inner scriptEvents on DeviceId
@@ -40,13 +40,14 @@ data_sources:
 falsepositives:
   - Approved remote support sessions
   - Helpdesk or infrastructure administration using sanctioned RMM tools
+  - IT automation launched during legitimate support workflows
 triage:
   - Confirm whether the RMM tool is approved in your environment
-  - Review the parent/child process chain and whether scripting began shortly after remote session establishment
+  - Review the parent-child chain and whether scripting began shortly after remote session establishment
   - Validate whether the affected user requested support or was targeted by a social-engineering lure
-  - Check for persistence, credential theft, or exfiltration after the RMM session
+  - Check for persistence, credential theft, exfiltration, or additional tooling after the remote session
 validation:
-  - Simulate a sanctioned Quick Assist session and compare to suspicious script-launch behavior
+  - Simulate a sanctioned Quick Assist or RMM session and compare with suspicious script-launch behavior
 lifecycle: testing
 owner: Detection Engineering
 tags:

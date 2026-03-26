@@ -1,10 +1,10 @@
 title: PowerShell or LOLBin External Network Traffic
 id: SENT-C2-0002
 status: experimental
-description: Detects outbound network connections from PowerShell and common LOLBins to external destinations.
+description: Detects outbound network connections from PowerShell and common LOLBins to external destinations, which may indicate download, staging, or command-and-control activity.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,9 +12,10 @@ logsource:
   category: network
 query: |
   DeviceNetworkEvents
-  | where InitiatingProcessFileName in~ ("powershell.exe","pwsh.exe","mshta.exe","rundll32.exe","regsvr32.exe","certutil.exe")
-  | where not(RemoteIP startswith "10." or RemoteIP startswith "192.168." or RemoteIP startswith "172.16.")
-  | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, RemoteIP, RemotePort, RemoteUrl
+  | where InitiatingProcessFileName in~ ("powershell.exe","pwsh.exe","mshta.exe","rundll32.exe","regsvr32.exe","certutil.exe","wscript.exe","cscript.exe")
+  | where not(ipv4_is_private(RemoteIP))
+  | where RemoteIP !in ("127.0.0.1")
+  | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteIP, RemotePort, RemoteUrl, Protocol, ReportId
 severity: high
 risk_score: 72
 tactics:
@@ -28,18 +29,21 @@ kill_chain_phases:
 data_sources:
   - DeviceNetworkEvents
 falsepositives:
-  - Approved automation that retrieves external content
-  - Security tools or scripts contacting public services
+  - Approved automation retrieving external content
+  - Security tools or admin scripts contacting public services
+  - Legitimate certificate or content retrieval workflows
 triage:
   - Validate whether the process normally makes external connections
-  - Review associated command line and parent process
-  - Inspect for downloads, beacons, or script execution nearby
+  - Review the associated command line, parent process, and execution path
+  - Inspect for downloads, beacons, encoded commands, or execution from temp or user-writable paths
 validation:
-  - Perform a benign web request from PowerShell in a lab
+  - Perform a benign external web request from PowerShell and compare against expected admin activity
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.command-and-control
   - attack.execution
   - sentinel
+  - lolbin
+  - powershell
   - command-and-control

@@ -1,31 +1,53 @@
-title: Data Collection from Local System
-id: dodea-sig-018-data-collection-from-local-system
+title: Suspicious Access to Sensitive Local User Documents
+id: SENT-COLL-0005
 status: experimental
-description: Detects enumeration or access to sensitive files on the local system
+description: Detects processes accessing potentially sensitive document types in common user data paths, which may indicate collection or staging from the local system.
 author: Adam Ring
-date: 2025-07-31 00:00:00+00:00
+date: 2026-03-26
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
+logsource:
+  product: windows
+  category: file_event
+query: |
+  DeviceFileEvents
+  | where ActionType in~ ("FileCreated","FileModified","FileRead","FileAccessed")
+  | where FolderPath has_any ("\\Users\\","\\Desktop\\","\\Documents\\","\\Downloads\\")
+  | where FileName endswith ".docx"
+      or FileName endswith ".pdf"
+      or FileName endswith ".xls"
+      or FileName endswith ".xlsx"
+      or FileName endswith ".csv"
+      or FileName endswith ".pptx"
+      or FileName endswith ".txt"
+  | where InitiatingProcessFileName !in~ ("explorer.exe","SearchIndexer.exe","OneDrive.exe","MsMpEng.exe")
+  | summarize FileCount=count(), DistinctPaths=dcount(FolderPath), Files=make_set(FileName,20) by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, bin(Timestamp, 15m)
+  | where FileCount >= 25 and DistinctPaths >= 3
+severity: medium
+risk_score: 57
+tactics:
+  - Collection
+techniques:
+  - T1005
+kill_chain_phases:
+  - Collection
+data_sources:
+  - DeviceFileEvents
+falsepositives:
+  - Backup, indexing, sync, or anti-malware activity
+  - Bulk document processing by IT or approved business tooling
+  - User-driven search, migration, or archival workflows
+triage:
+  - Identify the process and account accessing the files
+  - Determine whether the host or user normally performs bulk document access
+  - Review for nearby archive creation, cloud upload, email exfiltration, or removable media usage
+validation:
+  - Use a benign script in a lab to access many files across user folders and tune thresholds against normal activity
+lifecycle: experimental
+owner: Detection Engineering
 tags:
   - attack.collection
   - attack.t1005
-  - ckc.actions-on-objectives
-logsource:
-  product: windows
-  category: process_creation
-detection:
-  selection:
-    query: >-
-      DeviceFileEvents | where FolderPath has_any ("C:\Users\", "Desktop",
-      "Documents")
-
-      | where FileName endswith ".docx" or FileName endswith ".pdf" or FileName endswith ".xls" or FileName endswith ".csv"
-
-      | project TimeGenerated, DeviceName, FileName, FolderPath, ActionType
-  condition: selection
-falsepositives:
-  - None known
-level: medium
-tactics:
+  - sentinel
   - collection
-techniques:
-  - t1005
-lifecycle: experimental

@@ -1,10 +1,10 @@
-title: Screen Capture Utility Execution
+title: Suspicious Screen Capture Utility Execution
 id: SENT-COLL-0003
 status: experimental
-description: Detects screenshot or screen-capture tooling that may be used to collect user session data.
+description: Detects screen capture utilities or scripted screenshot behavior that may indicate collection of user session data.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,11 +12,16 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("snippingtool.exe","psr.exe","nircmd.exe")
-     or ProcessCommandLine has_any ("screenshot","capturedesktop","screen capture")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | where FileName in~ ("psr.exe","nircmd.exe","snippingtool.exe","snipaste.exe")
+      or ProcessCommandLine has_any ("screenshot","capturedesktop","saveimage","screen capture")
+  | extend SuspicionScore = 0
+  | extend SuspicionScore = SuspicionScore + iff(FileName in~ ("nircmd.exe","snipaste.exe"), 2, 0)
+  | extend SuspicionScore = SuspicionScore + iff(ProcessCommandLine has_any ("capturedesktop","saveimage","screenshot"), 2, 0)
+  | extend SuspicionScore = SuspicionScore + iff(InitiatingProcessFileName in~ ("powershell.exe","pwsh.exe","cmd.exe","wscript.exe","cscript.exe","mshta.exe"), 2, 0)
+  | where SuspicionScore >= 2
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId, SuspicionScore
 severity: medium
-risk_score: 55
+risk_score: 56
 tactics:
   - Collection
 techniques:
@@ -27,13 +32,14 @@ data_sources:
   - DeviceProcessEvents
 falsepositives:
   - Legitimate user screenshots
-  - Support or documentation workflows
+  - Support, documentation, or training workflows
+  - Approved remote support tooling capturing user screens
 triage:
-  - Validate whether screenshot usage is expected on the device
-  - Check if image files were written or staged
-  - Look for related exfiltration or credential access behavior
+  - Validate whether screenshot usage is expected for the user, host, and time window
+  - Check whether image files were written to temp, downloads, desktop, or other staging locations
+  - Review for nearby exfiltration, clipboard access, browser credential access, or archiving activity
 validation:
-  - Launch a benign screenshot utility in a lab
+  - Launch benign screen capture utilities in a lab and compare against help desk and normal user behavior
 lifecycle: experimental
 owner: Detection Engineering
 tags:

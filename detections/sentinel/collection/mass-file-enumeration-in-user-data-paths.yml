@@ -1,10 +1,10 @@
-title: Mass File Enumeration in User Data Paths
+title: Mass File Access in User Data Paths by Uncommon Process
 id: SENT-COLL-0002
 status: experimental
-description: Detects processes enumerating many files in user data paths, which can indicate staging for collection.
+description: Detects high-volume access to files in user data paths by uncommon processes, which can indicate collection or staging activity.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,8 +12,9 @@ logsource:
   category: file_event
 query: |
   DeviceFileEvents
-  | where FolderPath has_any ("\Users\","\Desktop\","\Documents\","\Downloads\")
-  | summarize FileTouches=count(), Paths=dcount(FolderPath) by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, bin(Timestamp, 15m)
+  | where FolderPath has_any ("\\Users\\","\\Desktop\\","\\Documents\\","\\Downloads\\")
+  | where InitiatingProcessFileName !in~ ("explorer.exe","SearchIndexer.exe","OneDrive.exe","MsMpEng.exe","svchost.exe")
+  | summarize FileTouches=count(), Paths=dcount(FolderPath), SamplePaths=make_set(FolderPath,20) by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, bin(Timestamp, 15m)
   | where FileTouches >= 200 and Paths >= 3
 severity: medium
 risk_score: 58
@@ -27,17 +28,20 @@ kill_chain_phases:
 data_sources:
   - DeviceFileEvents
 falsepositives:
-  - Backup, indexing, or anti-malware scanning
-  - Bulk file management by IT administrators
+  - Backup, indexing, sync, or anti-malware scanning
+  - Bulk file handling by administrators or approved enterprise tooling
+  - Software inventory or migration utilities
 triage:
-  - Identify the process touching large numbers of files
-  - Determine whether normal tooling explains the volume
-  - Review for compression or outbound transfer soon after
+  - Identify the process touching large numbers of files and whether it is normal for the host
+  - Review the command line, signer, path, and parent process for suspicious execution context
+  - Check whether archive creation, cloud upload, email transfer, or removable media usage followed soon after
 validation:
-  - Use a benign script to recurse through user folders in a lab
+  - Use a benign script to recurse through user folders in a lab and tune thresholds against normal platform noise
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.collection
+  - attack.t1005
+  - attack.t1039
   - sentinel
   - collection

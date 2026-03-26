@@ -1,10 +1,10 @@
 title: Suspicious Web Download via Certutil or Bitsadmin
 id: SENT-C2-0003
 status: experimental
-description: Detects built-in Windows utilities downloading remote content, a common pattern for staging command-and-control tools or payloads.
+description: Detects built-in Windows utilities downloading remote content, a common pattern for staging payloads, tooling, or command-and-control infrastructure.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -13,8 +13,8 @@ logsource:
 query: |
   DeviceProcessEvents
   | where FileName in~ ("certutil.exe","bitsadmin.exe")
-  | where ProcessCommandLine has_any ("http://","https://","/transfer","-urlcache")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | where ProcessCommandLine has_any ("http://","https://","/transfer","/addfile","-urlcache","download")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 75
 tactics:
@@ -29,16 +29,19 @@ data_sources:
 falsepositives:
   - Approved software distribution or update tasks
   - Administrator troubleshooting downloads
+  - Legacy scripts using built-in transfer utilities
 triage:
-  - Review the remote URL and downloaded file path
+  - Review the remote URL, destination path, and whether the file was later executed
   - Determine whether the command is part of approved admin workflow
-  - Check for subsequent execution from the download location
+  - Check for execution from temp, downloads, ProgramData, or other user-writable locations
 validation:
-  - Use certutil or bitsadmin to download a benign file in a lab
+  - Use certutil or bitsadmin to download a benign file in a lab and compare with known admin behavior
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.command-and-control
   - attack.execution
   - sentinel
+  - certutil
+  - bitsadmin
   - command-and-control

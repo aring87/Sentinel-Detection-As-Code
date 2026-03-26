@@ -1,27 +1,25 @@
-title: Browser Extension Install from Temp or User Profile
+title: Browser Extension Files Created by Non-Browser Process
 id: SENT-BROW-0001
 status: experimental
-description: Detects possible browser extension installation or staging from temporary or user-writable locations, aligned to Red Canary reporting on browser-extension threats and browser-centric compromise.
+description: Detects suspicious creation of browser extension files or folders in browser profile extension directories by non-browser processes, which may indicate unauthorized extension staging or installation.
 author: Adam Ring
 date: 2026-03-20
 modified: 2026-03-20
 logsource:
   product: windows
-  service: file_creation
+  category: file_event
 platform: microsoft_sentinel
 query_language: kql
 query: |
   DeviceFileEvents
-  | where FolderPath has "\\User Data\\Default\\Extensions\\"
-     or FolderPath has "\\User Data\\Profile "
-  | where InitiatingProcessFileName in~ ("chrome.exe","msedge.exe","brave.exe","firefox.exe","explorer.exe","msiexec.exe")
-  | where FolderPath has_any ("\\Downloads\\","\\Temp\\","\\AppData\\Local\\","\\AppData\\Roaming\\")
-  | project Timestamp,DeviceName,InitiatingProcessAccountName,InitiatingProcessFileName,FileName,FolderPath
+  | where FolderPath has_any ("\\Chrome\\User Data\\Default\\Extensions\\","\\Chrome\\User Data\\Profile ","\\Edge\\User Data\\Default\\Extensions\\","\\Edge\\User Data\\Profile ","\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Extensions\\")
+  | where FileName in~ ("manifest.json") or FolderPath matches regex @"\\Extensions\\[a-z]{32}\\"
+  | where InitiatingProcessFileName !in~ ("chrome.exe","msedge.exe","brave.exe","firefox.exe")
+  | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, FolderPath, SHA1, ReportId
 severity: medium
 risk_score: 60
 tactics:
   - Persistence
-  - Credential Access
 techniques:
   - T1176
 kill_chain_phases:
@@ -29,19 +27,20 @@ kill_chain_phases:
 data_sources:
   - DeviceFileEvents
 falsepositives:
-  - Legitimate browser extension installs by users
-  - Managed extension deployment
+  - Legitimate enterprise software deploying approved extensions
+  - Browser migration or profile restore activity
+  - Developer testing of unpacked extensions
 triage:
-  - Review the extension path, extension ID, and whether the browser is enterprise-managed
-  - Validate whether the extension is on the approved list
-  - Check for recent browser updates, compromised extension reports, or suspicious outbound requests
+  - Review the extension path, manifest, and extension ID
+  - Determine whether the extension is approved or enterprise-managed
+  - Review the initiating process and command line for archive extraction, scripting, or installer behavior
+  - Check for related browser credential theft, suspicious outbound traffic, or new persistence nearby
 validation:
-  - Install a benign test extension in a lab and compare path patterns
+  - Install a benign test extension and compare normal browser-created file patterns versus non-browser initiated writes
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.persistence
-  - attack.credential-access
   - attack.t1176
   - browser-extension
   - chrome
