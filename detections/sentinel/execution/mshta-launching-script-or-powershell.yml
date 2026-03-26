@@ -1,44 +1,48 @@
-title: MSHTA Launching Script or PowerShell
-id: SENT-EXEC-0002
-status: experimental
-description: Detects mshta.exe launching script interpreters or containing suspicious inline script or PowerShell indicators.
+title: Paste-and-Run Shell or Script Execution from Explorer
+id: SENT-EXEC-0005
+status: testing
+description: Detects likely copy-paste execution behavior launched from Explorer or shell context into PowerShell, CMD, or common script interpreters.
 author: Adam Ring
-date: 2026-03-06
-modified: 2026-03-06
+date: 2026-03-20
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
   product: windows
   category: process_creation
 query: |
+  let ScriptBins = dynamic(["powershell.exe","pwsh.exe","cmd.exe","wscript.exe","cscript.exe","mshta.exe","rundll32.exe"]);
   DeviceProcessEvents
-  | where FileName =~ "mshta.exe"
-  | where ProcessCommandLine has_any ("powershell","vbscript:","javascript:","http://","https://")
-  | project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName
+  | where InitiatingProcessFileName in~ ("explorer.exe")
+  | where FileName in~ (ScriptBins)
+  | where ProcessCommandLine has_any ("http://","https://","-enc","-encodedcommand","frombase64string","invoke-expression"," iwr "," irm ","curl ","wget ","javascript:","cmd /c","powershell -")
+  | project Timestamp, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, SHA1, SHA256, ReportId
 severity: high
-risk_score: 70
+risk_score: 80
 tactics:
   - Execution
-  - Defense Evasion
 techniques:
-  - T1218.005
+  - T1059
+  - T1204.001
 kill_chain_phases:
   - Execution
 data_sources:
   - DeviceProcessEvents
 falsepositives:
-  - Legacy administrative or application compatibility workflows
-  - Internal HTA-based tooling
+  - Administrator troubleshooting from Explorer shell context
+  - Developer testing of shell commands
+  - Approved internal tools launched interactively by users
 triage:
-  - Inspect the HTA source and any embedded URLs
-  - Review parent and child processes
-  - Determine whether mshta usage is normal for the device
+  - Review whether the user was instructed to paste a command into Run, PowerShell, or CMD
+  - Inspect the command for download, decode, or remote execution behavior
+  - Check for nearby browser activity, fake CAPTCHA lures, helpdesk scams, or Quick Assist sessions
 validation:
-  - Launch a test HTA from mshta.exe in a lab
-lifecycle: experimental
+  - Launch benign PowerShell or CMD commands from Explorer and compare with suspicious paste-and-run patterns
+lifecycle: testing
 owner: Detection Engineering
 tags:
   - attack.execution
-  - attack.defense-evasion
+  - attack.t1059
+  - attack.t1204.001
   - sentinel
   - execution

@@ -1,20 +1,20 @@
 title: AzCopy or Cloud CLI Bulk Export Activity
 id: SENT-EXFIL-0004
-status: stable
-description: Detects potential bulk cloud-storage exfiltration via AzCopy, AWS CLI, or gsutil from endpoints, aligned to Red Canary reporting on Data from Cloud Storage and cloud-native exfiltration.
+status: testing
+description: Detects repeated use of cloud transfer CLIs such as AzCopy, AWS CLI, or gsutil for bulk export, sync, or transfer activity from endpoints.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
-logsource:
-  product: windows
-  service: process_creation
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: windows
+  category: process_creation
 query: |
   DeviceProcessEvents
   | where FileName in~ ("azcopy.exe","azcopy","aws.exe","aws","gsutil.exe","gsutil")
   | where ProcessCommandLine has_any ("copy ","sync ","cp ","s3://","blob.core.windows.net","storage","gs://","download","upload")
-  | summarize ExecCount=count(),Commands=make_set(ProcessCommandLine,20),FirstSeen=min(Timestamp),LastSeen=max(Timestamp) by DeviceName,InitiatingProcessAccountName,FileName
+  | summarize ExecCount=count(), Commands=make_set(ProcessCommandLine,20), FirstSeen=min(Timestamp), LastSeen=max(Timestamp) by DeviceName, InitiatingProcessAccountName, FileName
   | where ExecCount >= 3
 severity: high
 risk_score: 80
@@ -29,14 +29,15 @@ data_sources:
   - DeviceProcessEvents
 falsepositives:
   - Approved cloud migration or backup operations
-  - Engineering or DevOps workflows using cloud-native transfer tools
+  - Engineering or DevOps workflows using cloud transfer tools
+  - Authorized bulk restore or synchronization tasks
 triage:
-  - Determine whether the user or host is expected to use AzCopy, AWS CLI, or gsutil
-  - Review the destination and whether the activity involved bulk export or sync
-  - Correlate with cloud storage permission changes, public access changes, or archive creation
-  - Check whether sensitive data, secrets, or backups were likely involved
+  - Determine whether the user or device is expected to use AzCopy, AWS CLI, or gsutil
+  - Review whether the command lines indicate bulk export, sync, or staging
+  - Correlate with storage permission changes, public access changes, or archive creation
+  - Check whether sensitive data or backups were likely involved
 validation:
-  - Run a benign AzCopy or cloud CLI transfer in a lab and compare command-line shape
+  - Run a benign AzCopy, AWS CLI, or gsutil transfer in a lab and compare command-line patterns
 lifecycle: testing
 owner: Detection Engineering
 tags:

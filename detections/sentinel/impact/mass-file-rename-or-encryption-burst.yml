@@ -1,10 +1,10 @@
 title: Mass File Rename or Encryption Burst
 id: SENT-IMPACT-0002
 status: experimental
-description: Detects rapid file modifications across multiple directories consistent with ransomware encryption or destructive impact.
+description: Detects rapid file operations across multiple directories consistent with ransomware encryption, destructive modification, or bulk rename behavior.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,7 +12,8 @@ logsource:
   category: file_event
 query: |
   DeviceFileEvents
-  | summarize FileOps=count(), Paths=dcount(FolderPath) by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, bin(Timestamp, 10m)
+  | where ActionType in~ ("FileCreated","FileModified","FileRenamed")
+  | summarize FileOps=count(), Paths=dcount(FolderPath), SamplePaths=make_set(FolderPath,20), SampleFiles=make_set(FileName,20) by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, bin(Timestamp, 10m)
   | where FileOps >= 500 and Paths >= 10
 severity: high
 risk_score: 82
@@ -26,11 +27,13 @@ data_sources:
   - DeviceFileEvents
 falsepositives:
   - Bulk file migrations or legitimate conversion jobs
-  - Backup or indexing products that touch many files
+  - Backup, indexing, or sync products that touch many files
+  - Large-scale content processing by approved business tools
 triage:
   - Identify the process making the changes and whether it is trusted
-  - Review file extension changes and ransom note drops
-  - Check for shadow copy deletion or recovery tampering
+  - Review file extension changes, ransom note drops, and any unusual output naming patterns
+  - Check for shadow copy deletion, recovery tampering, or log clearing activity nearby
+  - Validate whether the host normally runs backup or mass-processing software
 validation:
   - Use a benign mass file modification script in a lab and compare thresholds
 lifecycle: experimental

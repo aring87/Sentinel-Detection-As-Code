@@ -1,10 +1,10 @@
 title: PowerShell Encoded Command Execution
 id: SENT-EXEC-0001
 status: experimental
-description: Detects PowerShell execution with -enc or EncodedCommand arguments and decodes the command for analyst review.
+description: Detects PowerShell execution with -enc or EncodedCommand arguments and attempts to decode the payload for analyst review.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -16,7 +16,7 @@ query: |
   | where ProcessCommandLine has_any ("-enc","-encodedcommand")
   | extend Encoded = extract(@"(?:-enc|-encodedcommand)\s+([a-zA-Z0-9+/=]+)", 1, ProcessCommandLine)
   | extend Decoded = tostring(base64_decodestring(Encoded))
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, Encoded, Decoded
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, Encoded, Decoded, SHA1, ReportId
 severity: high
 risk_score: 75
 tactics:
@@ -30,12 +30,13 @@ data_sources:
 falsepositives:
   - Approved administrative automation using encoded PowerShell
   - Software deployment tooling
+  - Internal packaging or orchestration frameworks
 triage:
-  - Review the decoded command for suspicious behavior
-  - Validate account, device, and parent process context
-  - Correlate with file, registry, and network events
+  - Review the decoded command for download, credential access, persistence, or defense-evasion behavior
+  - Validate the account, device, parent process, and execution path
+  - Correlate with related file, registry, and network events
 validation:
-  - Run benign encoded PowerShell commands in a lab and confirm decoding
+  - Run benign encoded PowerShell commands in a lab and confirm decoding behavior
 lifecycle: experimental
 owner: Detection Engineering
 tags:

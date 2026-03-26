@@ -1,30 +1,32 @@
 title: Teams External Contact Followed by Quick Assist
 id: SENT-INIT-0006
 status: experimental
-description: Detects possible social-engineering chains where external Teams contact activity is followed by Quick Assist usage, aligned to Microsoft reporting that attackers used Microsoft Teams to impersonate IT/help desk before Quick Assist abuse.
+description: Detects potential social-engineering chains where external Teams contact activity is followed by Quick Assist usage for the same user.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
 logsource:
   product: m365_and_endpoint
   service: office_and_process
-platform: microsoft_sentinel
-query_language: kql
 query: |
-  let teamsActivity = OfficeActivity
-  | where OfficeWorkload =~ "MicrosoftTeams"
-  | where Operation has_any ("MessageSent","ChatCreated","CallStarted","MeetingParticipantAdded")
-  | extend UserUpn = tolower(UserId)
-  | where tostring(Parameters) has_any ("external","guest","federated")
-  | project TeamsTime=TimeGenerated, UserUpn, Operation, Parameters;
-  let qaUsage = DeviceProcessEvents
-  | where FileName =~ "quickassist.exe"
-  | extend UserUpn = tolower(InitiatingProcessAccountUpn)
-  | project QATime=Timestamp, DeviceName, UserUpn, ProcessCommandLine;
+  let teamsActivity =
+    OfficeActivity
+    | where OfficeWorkload =~ "MicrosoftTeams"
+    | where Operation has_any ("MessageSent","ChatCreated","CallStarted","MeetingParticipantAdded")
+    | extend UserUpn = tolower(UserId)
+    | where tostring(Parameters) has_any ("external","guest","federated")
+    | project TeamsTime=TimeGenerated, UserUpn, Operation, Parameters;
+  let qaUsage =
+    DeviceProcessEvents
+    | where FileName =~ "quickassist.exe"
+    | extend UserUpn = tolower(InitiatingProcessAccountUpn)
+    | project QATime=Timestamp, DeviceName, UserUpn, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine;
   teamsActivity
   | join kind=inner qaUsage on UserUpn
   | where QATime between (TeamsTime .. TeamsTime + 2h)
-  | project TeamsTime, QATime, UserUpn, DeviceName, Operation, Parameters, ProcessCommandLine
+  | project TeamsTime, QATime, UserUpn, DeviceName, Operation, Parameters, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
 severity: medium
 risk_score: 72
 tactics:
@@ -40,17 +42,20 @@ data_sources:
   - DeviceProcessEvents
 falsepositives:
   - Legitimate external Teams collaboration followed by support activity
+  - Guest meetings or chats that precede approved helpdesk sessions
 triage:
   - Review whether the user interacted with an external or guest Teams contact shortly before Quick Assist use
-  - Confirm whether the contact claimed to be IT/help desk
-  - Check for script execution, RMM tools, or downloads after Quick Assist
-  - Validate whether this matches any known scam or helpdesk workflow
+  - Confirm whether the contact claimed to be IT or help desk
+  - Check for script execution, RMM tools, downloads, or persistence after Quick Assist
+  - Validate whether the sequence matches any known scam or approved support workflow
 validation:
   - Tune against normal external Teams collaboration patterns in your environment
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.initial-access
+  - attack.t1566
+  - attack.t1219
   - teams
   - quick-assist
   - social-engineering

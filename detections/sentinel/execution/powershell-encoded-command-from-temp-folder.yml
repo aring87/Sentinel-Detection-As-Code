@@ -1,21 +1,47 @@
-title: Suspicious PowerShell Encoded Command Execution
+title: PowerShell Encoded Command from Temp or User-Writable Path
 id: SENT-EXEC-0003
-status: stable
-description: Detects PowerShell execution with encoded commands that may indicate obfuscation or malicious script execution.
-author: Your Name
-date: 2026-03-06
-modified: 2026-03-06
+status: experimental
+description: Detects PowerShell encoded-command execution when the PowerShell binary, parent process, or launch context is tied to temp or other user-writable locations.
+author: Adam Ring
+date: 2026-03-26
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: windows
+  category: process_creation
 query: |
   DeviceProcessEvents
   | where FileName in~ ("powershell.exe","pwsh.exe")
   | where ProcessCommandLine has_any ("-enc","-encodedcommand")
-severity: medium
+  | where FolderPath has_any ("\\Temp\\","\\AppData\\Local\\","\\AppData\\Roaming\\","\\Users\\Public\\","\\Downloads\\")
+      or InitiatingProcessFolderPath has_any ("\\Temp\\","\\AppData\\Local\\","\\AppData\\Roaming\\","\\Users\\Public\\","\\Downloads\\")
+  | extend Encoded = extract(@"(?:-enc|-encodedcommand)\s+([a-zA-Z0-9+/=]+)", 1, ProcessCommandLine)
+  | extend Decoded = tostring(base64_decodestring(Encoded))
+  | project Timestamp, DeviceName, AccountName, FolderPath, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, Encoded, Decoded, SHA1, ReportId
+severity: high
+risk_score: 82
 tactics:
   - Execution
 techniques:
   - T1059.001
 kill_chain_phases:
   - Execution
-lifecycle: testing
+data_sources:
+  - DeviceProcessEvents
+falsepositives:
+  - Rare internal admin scripts launched from downloads or temp locations
+  - Developer testing from unpacked or transient working folders
+triage:
+  - Inspect the writable-path context and whether the process tree originated from downloads, temp, or appdata
+  - Review the decoded command and any child process, network, or persistence behavior
+  - Determine whether the payload was launched from a recently downloaded file
+validation:
+  - Execute a benign encoded PowerShell payload from a temp folder in a lab
+lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.execution
+  - attack.t1059.001
+  - sentinel
+  - execution

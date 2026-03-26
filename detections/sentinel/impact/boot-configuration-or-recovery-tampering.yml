@@ -4,7 +4,7 @@ status: experimental
 description: Detects attempts to disable recovery options or alter boot configuration, often used to hinder recovery during destructive attacks.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -13,8 +13,8 @@ logsource:
 query: |
   DeviceProcessEvents
   | where FileName in~ ("bcdedit.exe","reagentc.exe")
-  | where ProcessCommandLine has_any ("recoveryenabled no","bootstatuspolicy ignoreallfailures","/disable")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | where ProcessCommandLine has_any ("recoveryenabled no","bootstatuspolicy ignoreallfailures","/disable","reagentc /disable")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 78
 tactics:
@@ -30,16 +30,20 @@ data_sources:
 falsepositives:
   - Rare approved maintenance or recovery workflows
   - OS imaging or hardware repair activity
+  - Lab validation involving recovery configuration changes
 triage:
   - Review whether the system change was approved maintenance
-  - Check for ransomware staging or shadow copy deletion nearby
-  - Inspect the initiating account and process chain
+  - Check for ransomware staging, shadow copy deletion, or mass file modification nearby
+  - Inspect the initiating account, parent process, and execution path
+  - Determine whether the host is a workstation, server, or imaging system
 validation:
-  - Run benign boot recovery configuration changes in a lab
+  - Run benign boot or recovery configuration changes in a lab and confirm telemetry
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.impact
   - attack.defense-evasion
+  - attack.t1490
+  - attack.t1562
   - sentinel
   - impact

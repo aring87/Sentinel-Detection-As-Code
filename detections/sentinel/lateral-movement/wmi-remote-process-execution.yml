@@ -4,7 +4,7 @@ status: experimental
 description: Detects use of WMIC or PowerShell WMI calls to spawn processes on remote systems.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,11 +12,11 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("wmic.exe","powershell.exe")
+  | where FileName in~ ("wmic.exe","powershell.exe","pwsh.exe")
   | where ProcessCommandLine has_any ("process call create","Invoke-WmiMethod","Win32_Process","-ComputerName")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
-risk_score: 78
+risk_score: 80
 tactics:
   - Lateral Movement
   - Execution
@@ -29,16 +29,19 @@ data_sources:
 falsepositives:
   - Systems management and admin automation
   - Remote inventory or patching activity
+  - Approved support tooling using WMI for execution
 triage:
   - Review the target host and command executed remotely
-  - Determine whether WMI is commonly used by administrators
-  - Correlate with remote logon and file copy activity
+  - Determine whether WMI is commonly used by administrators on this device or by this account
+  - Check for remote logon, SMB copy, or service/task creation activity nearby
+  - Review whether the spawned command launched PowerShell, CMD, LOLBins, or payloads from writable paths
 validation:
-  - Run benign remote WMI process creation in a lab
+  - Run benign remote WMI process creation in a lab and verify telemetry
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.lateral-movement
   - attack.execution
+  - attack.t1047
   - sentinel
   - lateral-movement

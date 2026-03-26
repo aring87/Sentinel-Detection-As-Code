@@ -1,29 +1,31 @@
 title: SharePoint or OneDrive Bulk Download by Newly Risky User
 id: SENT-EXFIL-0006
-status: stable
-description: Detects high-volume SharePoint or OneDrive file download activity by a user who recently had a risky or unusual sign-in, intended to surface post-compromise cloud collection and exfiltration in Microsoft 365 environments.
+status: testing
+description: Detects high-volume SharePoint or OneDrive download activity by a user who recently had a risky or unusual sign-in, intended to surface post-compromise cloud collection and exfiltration.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
-logsource:
-  product: m365_and_entra
-  service: office_and_sign_in
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: m365_and_entra
+  category: office_and_sign_in
 query: |
-  let riskyUsers = SigninLogs
-  | where ResultType == 0
-  | where RiskLevelAggregated in~ ("medium","high")
-      or RiskState !in~ ("none","dismissed")
-      or AuthenticationProtocol =~ "deviceCode"
-  | extend UserUpn = tolower(UserPrincipalName)
-  | summarize LastRiskySignin=max(TimeGenerated) by UserUpn;
-  let bulkDownloads = OfficeActivity
-  | where Operation in~ ("FileDownloaded","FileSyncDownloadedFull","FileSyncDownloadedPartial")
-  | where OfficeWorkload in~ ("OneDrive","SharePoint")
-  | extend UserUpn = tolower(UserId)
-  | summarize DownloadCount=count(), Sites=make_set(Site_Url,10), Objects=make_set(OfficeObjectId,20), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by bin(TimeGenerated, 1h), UserUpn, OfficeWorkload
-  | where DownloadCount >= 25;
+  let riskyUsers =
+    SigninLogs
+    | where ResultType == 0
+    | where RiskLevelAggregated in~ ("medium","high")
+        or RiskState !in~ ("none","dismissed")
+        or AuthenticationProtocol =~ "deviceCode"
+    | extend UserUpn = tolower(UserPrincipalName)
+    | summarize LastRiskySignin=max(TimeGenerated) by UserUpn;
+  let bulkDownloads =
+    OfficeActivity
+    | where Operation in~ ("FileDownloaded","FileSyncDownloadedFull","FileSyncDownloadedPartial")
+    | where OfficeWorkload in~ ("OneDrive","SharePoint")
+    | extend UserUpn = tolower(UserId)
+    | summarize DownloadCount=count(), Sites=make_set(Site_Url,10), Objects=make_set(OfficeObjectId,20), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by bin(TimeGenerated, 1h), UserUpn, OfficeWorkload
+    | where DownloadCount >= 25;
   riskyUsers
   | join kind=inner bulkDownloads on UserUpn
   | where FirstSeen between (LastRiskySignin .. LastRiskySignin + 24h)
@@ -31,8 +33,8 @@ query: |
 severity: high
 risk_score: 89
 tactics:
-  - Exfiltration
   - Collection
+  - Exfiltration
 techniques:
   - T1213
   - T1567
@@ -43,20 +45,23 @@ data_sources:
   - SigninLogs
   - OfficeActivity
 falsepositives:
-  - Approved migration or sync events after legitimate sign-in risk changes
+  - Approved migration or sync events after legitimate risk changes
   - Planned content export by authorized users
+  - Large but expected business downloads
 triage:
-  - Review the sign-in risk context and whether the account shows phishing or device code indicators
+  - Review the risky sign-in context and whether the account shows phishing or device-code indicators
   - Determine whether the download volume is unusual for the user
   - Check the sensitivity of the sites and files involved
   - Review whether the user also created forwarding rules, app consents, or Graph mail access afterward
 validation:
-  - Tune against normal sync and migration patterns in your tenant
+  - Tune against normal sync, export, and migration patterns in your tenant
 lifecycle: testing
 owner: Detection Engineering
 tags:
-  - attack.exfiltration
   - attack.collection
+  - attack.exfiltration
+  - attack.t1213
+  - attack.t1567
   - onedrive
   - sharepoint
   - risky-signin

@@ -4,7 +4,7 @@ status: experimental
 description: Detects common commands used to gather host, network, and interface information in a short burst.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,8 +12,8 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("ipconfig.exe","arp.exe","route.exe","systeminfo.exe","netstat.exe")
-  | summarize CommandCount=count(), Commands=make_set(ProcessCommandLine, 10) by DeviceName, AccountName, bin(Timestamp, 10m)
+  | where FileName in~ ("ipconfig.exe","arp.exe","route.exe","systeminfo.exe","netstat.exe","getmac.exe","hostname.exe")
+  | summarize CommandCount=count(), Commands=make_set(ProcessCommandLine, 12) by DeviceName, AccountName, bin(Timestamp, 10m)
   | where CommandCount >= 4
 severity: medium
 risk_score: 50
@@ -30,15 +30,19 @@ data_sources:
 falsepositives:
   - Troubleshooting by support teams
   - Asset inventory or diagnostics tooling
+  - Administrator host triage
 triage:
   - Inspect the burst of discovery commands and the operator account
-  - Determine whether the host is a workstation or admin jump box
-  - Review follow-on remote execution or staging activity
+  - Determine whether the host is a workstation, server, or admin jump box
+  - Review follow-on remote execution, credential access, or staging activity
 validation:
   - Run multiple discovery commands within ten minutes in a lab
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.discovery
+  - attack.t1016
+  - attack.t1082
+  - attack.t1049
   - sentinel
   - discovery

@@ -1,27 +1,27 @@
 title: Cloud Storage Public Access or Immutability Removal
 id: SENT-EXFIL-0005
-status: stable
-description: Detects cloud storage configuration changes that may enable exfiltration or destructive follow-on activity, including enabling public access, disabling firewalls, or removing immutability protections. Inspired by Red Canary reporting on Data from Cloud Storage.
+status: testing
+description: Detects cloud storage configuration changes that may enable exfiltration or destructive follow-on activity, including public access enablement, firewall weakening, or immutability removal.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
-logsource:
-  product: cloud
-  service: administrative_activity
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: cloud
+  category: administrative_activity
 query: |
   union isfuzzy=true
   (
     AzureActivity
     | where OperationNameValue has_any ("Microsoft.Storage/storageAccounts/write","Microsoft.Storage/storageAccounts/blobServices/containers/write","Microsoft.Storage/storageAccounts/blobServices/write")
     | where Properties has_any ("allowBlobPublicAccess","publicAccess","networkAcls","defaultAction","immutability","legalHold","allowSharedKeyAccess")
-    | project TimeGenerated, SourceTable="AzureActivity", Caller, ResourceGroup, ResourceProvider, OperationNameValue, Properties, ActivityStatusValue
+    | project TimeGenerated, SourceTable="AzureActivity", Actor=Caller, ResourceGroup, ResourceProvider, Operation=OperationNameValue, Details=Properties, Status=ActivityStatusValue
   ),
   (
     CloudAppEvents
     | where ActionType has_any ("SetBucketAcl","PutBucketAcl","PutBucketPolicy","UpdateStorageAccount","SetPublicAccess","RemoveImmutabilityPolicy","DeleteImmutabilityPolicy")
-    | project TimeGenerated, SourceTable="CloudAppEvents", AccountDisplayName, Application, ActionType, RawEventData
+    | project TimeGenerated, SourceTable="CloudAppEvents", Actor=AccountDisplayName, Application, Operation=ActionType, Details=RawEventData
   )
 severity: high
 risk_score: 86
@@ -40,19 +40,21 @@ data_sources:
 falsepositives:
   - Approved storage administration changes
   - Planned migrations or controlled public-sharing changes
+  - Authorized backup retention or legal hold modifications
 triage:
   - Determine whether public access, firewall exceptions, or immutability settings were changed
-  - Validate whether the caller is an authorized cloud administrator
+  - Validate whether the actor is an authorized cloud administrator
   - Review whether AzCopy, cloud CLI tools, or unusual data access followed the change
   - Check whether backup or recovery protections were weakened before destructive actions
 validation:
-  - Test with a lab storage account by modifying public access or immutability controls
+  - Modify public access or immutability settings on a lab storage account and confirm telemetry
 lifecycle: testing
 owner: Detection Engineering
 tags:
   - attack.exfiltration
   - attack.impact
   - attack.t1567
+  - attack.t1485
   - cloud-storage
   - immutability
   - public-access

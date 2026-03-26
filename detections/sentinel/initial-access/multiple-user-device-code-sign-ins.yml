@@ -1,10 +1,10 @@
 title: Multiple User Device Code Sign-Ins
 id: SENT-INIT-0001
 status: experimental
-description: Detects device code authentication across multiple users, a pattern associated with phishing and token theft.
+description: Detects device code authentication across multiple users from the same source context in a short time window, a pattern associated with phishing and token theft.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -13,7 +13,8 @@ logsource:
 query: |
   SigninLogs
   | where AuthenticationProtocol =~ "deviceCode"
-  | summarize UserCount=dcount(UserPrincipalName), Users=make_set(UserPrincipalName, 20) by IPAddress, AppDisplayName, bin(TimeGenerated, 30m)
+  | extend JoinUser = tolower(UserPrincipalName)
+  | summarize UserCount=dcount(JoinUser), Users=make_set(JoinUser, 20), Apps=make_set(AppDisplayName, 10) by IPAddress, AppDisplayName, bin(TimeGenerated, 30m)
   | where UserCount >= 3
 severity: high
 risk_score: 75
@@ -24,22 +25,26 @@ techniques:
   - T1566
   - T1078
 kill_chain_phases:
-  - Initial Access
+  - Delivery
 data_sources:
   - SigninLogs
 falsepositives:
   - Legitimate device code workflows in limited environments
-  - Test tenants or lab scenarios
+  - Test tenants, labs, or staged onboarding events
+  - Shared proxy or jump-box scenarios with known auth workflows
 triage:
-  - Review the source IP, users, and app involved
-  - Determine whether device code is allowed or expected
-  - Correlate with mailbox access, app consent, or token abuse
+  - Review the source IP, users, app, and time window involved
+  - Determine whether device code authentication is allowed or expected
+  - Correlate with mailbox access, app consent, token abuse, or device registration
+  - Check whether multiple users were targeted by similar lures
 validation:
-  - Perform a test device code sign-in in a lab
+  - Perform controlled device code sign-ins in a lab and tune thresholds against normal activity
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.initial-access
   - attack.credential-access
+  - attack.t1566
+  - attack.t1078
   - sentinel
   - initial-access

@@ -1,15 +1,15 @@
 title: OAuth Redirection Abuse URL Click
 id: SENT-INIT-0005
-status: stable
-description: Detects suspicious OAuth authorization links clicked by users where parameters suggest redirection abuse, aligned to Microsoft reporting on phishing campaigns that abuse prompt=none, invalid scopes, and attacker-controlled redirect URIs.
+status: testing
+description: Detects suspicious OAuth authorization links clicked by users where parameters suggest redirection abuse or attacker-controlled redirect handling.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
 logsource:
   product: email_and_browser
   service: url_clicks
-platform: microsoft_sentinel
-query_language: kql
 query: |
   UrlClickEvents
   | where ActionType in ("ClickAllowed","UrlScanInProgress","UrlErrorPage") or IsClickedThrough != "0"
@@ -30,11 +30,12 @@ data_sources:
 falsepositives:
   - Rare legitimate OAuth testing workflows
   - Internal developer auth troubleshooting
+  - Authorized application integration testing
 triage:
   - Review the full URL chain and redirect target
   - Determine whether the message used a collaboration, e-signature, or meeting lure
   - Identify whether the clicked link redirected to an attacker-controlled domain or auto-download path
-  - Check for nearby device code, risky sign-in, or browser download activity for the same user
+  - Check for nearby device code, risky sign-in, consent abuse, or browser download activity for the same user
 validation:
   - Test with a benign OAuth authorize URL in a lab mailbox and tune on target parameters
 lifecycle: testing

@@ -1,26 +1,45 @@
-title: DNS Enumeration via command-line tools
-id: dodea-sig-013-dns-enumeration-via-command-line
+title: DNS Enumeration via Command-Line Tools
+id: SENT-DISC-0004
 status: experimental
-description: DNS Enumeration via command-line tools
-author: adam.ring
-date: 2025-07-31 00:00:00+00:00
-tags:
-  - attack.discovery
-  - attack.t1046
-  - ckc.reconnaissance
+description: Detects use of common DNS lookup utilities that may indicate environment discovery or domain enumeration activity.
+author: Adam Ring
+date: 2026-03-26
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
 logsource:
   product: windows
   category: process_creation
-detection:
-  selection:
-    query: DeviceProcessEvents | where FileName in~ ("nslookup.exe", "whois.exe",
-      "dig.exe") | project TimeGenerated, DeviceName, AccountName, FileName,
-      ProcessCommandLine
-  condition: selection
-falsepositives: null
-level: high
+query: |
+  DeviceProcessEvents
+  | where FileName in~ ("nslookup.exe","whois.exe","dig.exe")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId
+severity: medium
+risk_score: 52
 tactics:
-  - discovery
+  - Discovery
 techniques:
-  - t1046
+  - T1016
+  - T1046
+kill_chain_phases:
+  - Discovery
+data_sources:
+  - DeviceProcessEvents
+falsepositives:
+  - Administrator or network troubleshooting
+  - DNS diagnostics and support workflows
+  - Inventory or asset discovery tooling
+triage:
+  - Review the queried domains, record types, and volume of lookup activity
+  - Determine whether the user or host normally performs DNS diagnostics
+  - Check for follow-on LDAP, account, or trust discovery
+validation:
+  - Run benign nslookup or dig commands in a lab and compare with support activity
 lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.discovery
+  - attack.t1016
+  - attack.t1046
+  - sentinel
+  - discovery

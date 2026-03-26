@@ -1,15 +1,15 @@
 title: Cloud Backup or Storage Mass Delete Burst
 id: SENT-IMPACT-0004
-status: stable
-description: Detects bursts of cloud storage or backup deletion activity that may indicate destructive cloud impact or anti-recovery actions. Inspired by Red Canary reporting on primary data deletion and backup destruction in cloud environments.
+status: testing
+description: Detects bursts of cloud storage or backup deletion activity that may indicate destructive cloud impact or anti-recovery actions.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
 logsource:
   product: cloud
   service: administrative_activity
-platform: microsoft_sentinel
-query_language: kql
 query: |
   union isfuzzy=true
   (
@@ -17,12 +17,14 @@ query: |
     | where OperationNameValue has_any ("Microsoft.Storage/storageAccounts/delete","Microsoft.RecoveryServices/vaults/delete","Microsoft.Compute/snapshots/delete")
     | summarize DeleteCount=count(), Ops=make_set(OperationNameValue,20) by bin(TimeGenerated, 30m), Caller, ResourceGroup
     | where DeleteCount >= 3
+    | project TimeGenerated, Actor=Caller, Scope=ResourceGroup, Source="AzureActivity", DeleteCount, Ops
   ),
   (
     CloudAppEvents
     | where ActionType has_any ("DeleteBucket","DeleteObject","DeleteSnapshot","DeleteBackupVault","DeleteStorageAccount")
     | summarize DeleteCount=count(), Ops=make_set(ActionType,20) by bin(TimeGenerated, 30m), AccountDisplayName, Application
     | where DeleteCount >= 5
+    | project TimeGenerated, Actor=AccountDisplayName, Scope=Application, Source="CloudAppEvents", DeleteCount, Ops
   )
 severity: high
 risk_score: 90
@@ -39,13 +41,14 @@ data_sources:
 falsepositives:
   - Planned decommissioning or cleanup work
   - Approved lifecycle automation
+  - Authorized cloud retention or teardown workflows
 triage:
   - Confirm whether storage accounts, snapshots, buckets, or backup vaults were deleted in bulk
   - Validate whether the actor is expected to perform destructive cloud administration
-  - Review preceding public access, immutability, or credential abuse events
+  - Review preceding public access changes, immutability removal, or credential abuse
   - Check whether ransomware or extortion-related behavior is also present
 validation:
-  - Test in a cloud lab with controlled snapshot or storage deletion activity
+  - Test controlled snapshot, storage, or vault deletion activity in a cloud lab
 lifecycle: testing
 owner: Detection Engineering
 tags:

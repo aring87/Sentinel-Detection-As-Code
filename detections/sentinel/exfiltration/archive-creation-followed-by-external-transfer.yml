@@ -1,22 +1,32 @@
 title: Archive Creation Followed by External Transfer
 id: SENT-EXFIL-0002
 status: experimental
-description: Detects archive creation in user paths that may support data staging for exfiltration.
+description: Detects archive creation in user data paths followed by external network transfer activity from the same device, which may indicate staging and exfiltration.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
   product: windows
-  category: file_event
+  category: file_event_and_network
 query: |
-  DeviceFileEvents
-  | where FileName endswith ".zip" or FileName endswith ".7z" or FileName endswith ".rar"
-  | where FolderPath has_any ("\Users\","\Desktop\","\Documents\","\Downloads\")
-  | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, FileName, FolderPath
+  let archives =
+    DeviceFileEvents
+    | where FileName endswith ".zip" or FileName endswith ".7z" or FileName endswith ".rar"
+    | where FolderPath has_any ("\\Users\\","\\Desktop\\","\\Documents\\","\\Downloads\\")
+    | project ArchiveTime=Timestamp, DeviceId, DeviceName, ArchiveUser=InitiatingProcessAccountName, ArchiveProc=InitiatingProcessFileName, ArchiveFile=FileName, ArchivePath=FolderPath;
+  let outbound =
+    DeviceNetworkEvents
+    | where not(ipv4_is_private(RemoteIP))
+    | where RemoteIP !in ("127.0.0.1")
+    | summarize ConnCount=count(), Destinations=make_set(RemoteUrl,10), IPs=make_set(RemoteIP,10) by DeviceId, bin(Timestamp, 30m), InitiatingProcessFileName, InitiatingProcessCommandLine;
+  archives
+  | join kind=inner outbound on DeviceId
+  | where Timestamp between (ArchiveTime .. ArchiveTime + 30m)
+  | project ArchiveTime, Timestamp, DeviceName, ArchiveUser, ArchiveProc, ArchiveFile, ArchivePath, InitiatingProcessFileName, InitiatingProcessCommandLine, ConnCount, Destinations, IPs
 severity: high
-risk_score: 78
+risk_score: 82
 tactics:
   - Collection
   - Exfiltration
@@ -24,22 +34,28 @@ techniques:
   - T1560
   - T1048
 kill_chain_phases:
+  - Collection
   - Exfiltration
 data_sources:
   - DeviceFileEvents
+  - DeviceNetworkEvents
 falsepositives:
-  - Legitimate user archiving or software packaging
-  - Backup or transfer preparation tasks
+  - Legitimate user archiving followed by approved upload or transfer
+  - Backup, migration, or packaging workflows
+  - Software release preparation
 triage:
-  - Inspect what files were archived and by which process
-  - Correlate with outbound network traffic afterward
-  - Determine whether the user regularly creates archives in these paths
+  - Inspect what was archived, where it was written, and which process created it
+  - Review the external destinations contacted shortly after archive creation
+  - Determine whether the user and host normally create archives in those locations
+  - Check for related cloud uploads, email exfiltration, or removable media activity
 validation:
-  - Create a benign archive in user data paths and verify event capture
+  - Create a benign archive in user data paths and transfer a safe test file externally in a lab
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.collection
   - attack.exfiltration
+  - attack.t1560
+  - attack.t1048
   - sentinel
   - exfiltration

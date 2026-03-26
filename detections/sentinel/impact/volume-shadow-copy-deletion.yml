@@ -1,10 +1,10 @@
 title: Volume Shadow Copy Deletion
 id: SENT-IMPACT-0001
 status: experimental
-description: Detects deletion of shadow copies using built-in Windows utilities, a common ransomware precursor.
+description: Detects deletion of shadow copies using built-in Windows utilities, a common ransomware precursor and anti-recovery action.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,9 +12,9 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("vssadmin.exe","wmic.exe","powershell.exe")
-  | where ProcessCommandLine has_any ("delete shadows","shadowcopy delete","Win32_Shadowcopy")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | where FileName in~ ("vssadmin.exe","wmic.exe","powershell.exe","cmd.exe")
+  | where ProcessCommandLine has_any ("delete shadows","shadowcopy delete","Win32_Shadowcopy","vssadmin delete shadows","Get-WmiObject Win32_ShadowCopy","Remove-WmiObject")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 85
 tactics:
@@ -28,10 +28,12 @@ data_sources:
 falsepositives:
   - Approved backup maintenance or restore workflows
   - Lab validation or recovery testing
+  - Rare administrative troubleshooting
 triage:
   - Validate whether the deletion was authorized
-  - Check for concurrent encryption or log clearing activity
-  - Inspect the parent process and user context
+  - Check for concurrent encryption, log clearing, or boot-recovery tampering
+  - Inspect the parent process, execution path, and user context
+  - Determine whether the host recently showed archive creation, staging, or mass file changes
 validation:
   - Delete shadow copies on a lab machine or replay representative telemetry
 lifecycle: experimental

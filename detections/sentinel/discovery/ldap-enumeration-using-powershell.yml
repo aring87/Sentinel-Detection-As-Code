@@ -4,7 +4,7 @@ status: experimental
 description: Detects PowerShell commands that invoke Active Directory or LDAP enumeration patterns.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -13,9 +13,9 @@ logsource:
 query: |
   DeviceProcessEvents
   | where FileName in~ ("powershell.exe","pwsh.exe")
-  | where ProcessCommandLine has_any ("Get-ADUser","Get-ADComputer","Get-ADGroup","DirectorySearcher","LDAP://","ADSISearcher")
-  | project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName
-severity: high
+  | where ProcessCommandLine has_any ("Get-ADUser","Get-ADComputer","Get-ADGroup","Get-ADObject","DirectorySearcher","LDAP://","ADSISearcher","Get-DomainUser","Get-DomainComputer")
+  | project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId
+severity: medium
 risk_score: 68
 tactics:
   - Discovery
@@ -29,15 +29,18 @@ data_sources:
 falsepositives:
   - Approved AD administration and support work
   - Identity inventory scripts
+  - Lab or validation testing
 triage:
   - Review the AD objects queried and host context
   - Determine whether the system is used for administration
-  - Check for privilege escalation or lateral movement afterward
+  - Check for privilege escalation, lateral movement, or credential access afterward
 validation:
   - Run benign AD PowerShell queries in a lab
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.discovery
+  - attack.t1087.002
+  - attack.t1018
   - sentinel
   - discovery

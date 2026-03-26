@@ -1,10 +1,10 @@
 title: PowerShell Email Exfiltration with Attachments
 id: SENT-EXFIL-0001
 status: experimental
-description: Detects PowerShell commands that reference SMTP or mail libraries and file attachments, which may indicate scripted exfiltration.
+description: Detects PowerShell commands that reference SMTP or mail libraries together with attachment-related arguments, which may indicate scripted email exfiltration.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -14,7 +14,7 @@ query: |
   DeviceProcessEvents
   | where FileName in~ ("powershell.exe","pwsh.exe")
   | where ProcessCommandLine has_any ("Send-MailMessage","SmtpClient","-Attachments","smtp")
-  | project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 80
 tactics:
@@ -29,15 +29,19 @@ data_sources:
 falsepositives:
   - Approved scripted alerting or email notifications
   - Legacy automation using Send-MailMessage
+  - Internal notification scripts with attachments
 triage:
-  - Review the recipients, attachments, and script source
-  - Determine whether the script is approved
-  - Check for staging or archive creation before the email activity
+  - Review recipients, attachment references, and script source
+  - Determine whether the script is approved and expected on the host
+  - Check for staging, archive creation, or document access before the email activity
+  - Inspect whether the same script also accessed browser stores, clipboard data, or sensitive files
 validation:
-  - Run a benign test script that references Send-MailMessage or SMTP
+  - Run a benign test script using Send-MailMessage or SMTP in a lab
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.exfiltration
+  - attack.t1020
+  - attack.t1048
   - sentinel
   - exfiltration

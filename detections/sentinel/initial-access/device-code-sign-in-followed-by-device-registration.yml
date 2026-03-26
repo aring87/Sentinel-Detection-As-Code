@@ -1,32 +1,35 @@
 title: Device Code Sign-In Followed by Device Registration
 id: SENT-INIT-0004
-status: stable
-description: Detects device code authentication followed closely by a new device registration event for the same user, aligned to Microsoft reporting on Storm-2372 abuse of device code flow to obtain refresh tokens, register actor-controlled devices, and obtain PRT-backed access.
+status: testing
+description: Detects successful device code authentication followed closely by new device registration activity for the same user, which may indicate device code phishing followed by actor-controlled device enrollment.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
 logsource:
   product: entra_id
   service: sign_in_and_cloud_app
-platform: microsoft_sentinel
-query_language: kql
 query: |
-  let deviceCodeSignins = SigninLogs
-  | where AuthenticationProtocol =~ "deviceCode"
-  | where ResultType == 0
-  | extend UserPrincipalName = tolower(UserPrincipalName)
-  | project SigninTime=TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName, CorrelationId;
-  let deviceRegistrations = CloudAppEvents
-  | where AccountDisplayName == "Device Registration Service"
-  | extend UserPrincipalName = tolower(tostring(RawEventData.ObjectId))
-  | extend DeviceName = tostring(parse_json(tostring(RawEventData.ModifiedProperties))[1].NewValue)
-  | extend DeviceObjectId = tostring(parse_json(tostring(RawEventData.ModifiedProperties))[0].NewValue)
-  | project RegistrationTime=TimeGenerated, UserPrincipalName, DeviceName, DeviceObjectId, Application
-  ;
+  let deviceCodeSignins =
+    SigninLogs
+    | where AuthenticationProtocol =~ "deviceCode"
+    | where ResultType == 0
+    | extend JoinUser = tolower(UserPrincipalName)
+    | where isnotempty(JoinUser)
+    | project SigninTime=TimeGenerated, JoinUser, IPAddress, AppDisplayName, CorrelationId;
+  let deviceRegistrations =
+    CloudAppEvents
+    | where AccountDisplayName == "Device Registration Service" or Application =~ "Device Registration Service"
+    | extend JoinUser = tolower(tostring(RawEventData.ObjectId))
+    | extend DeviceName = tostring(parse_json(tostring(RawEventData.ModifiedProperties))[1].NewValue)
+    | extend DeviceObjectId = tostring(parse_json(tostring(RawEventData.ModifiedProperties))[0].NewValue)
+    | where isnotempty(JoinUser)
+    | project RegistrationTime=TimeGenerated, JoinUser, DeviceName, DeviceObjectId, Application, RawEventData;
   deviceCodeSignins
-  | join kind=inner deviceRegistrations on UserPrincipalName
+  | join kind=inner deviceRegistrations on JoinUser
   | where RegistrationTime between (SigninTime .. SigninTime + 2h)
-  | project SigninTime, RegistrationTime, UserPrincipalName, IPAddress, AppDisplayName, DeviceName, DeviceObjectId, Application, CorrelationId
+  | project SigninTime, RegistrationTime, JoinUser, IPAddress, AppDisplayName, DeviceName, DeviceObjectId, Application, CorrelationId, RawEventData
 severity: high
 risk_score: 90
 tactics:
@@ -44,9 +47,10 @@ data_sources:
 falsepositives:
   - Legitimate device code enrollment scenarios
   - Approved device registration workflows
+  - Lab validation of device registration flows
 triage:
   - Confirm whether the user expected a device code prompt
-  - Review the source IP, app, and any unusual proxy or geography signals
+  - Review the source IP, app, and any unusual proxy, ASN, or geography signals
   - Validate whether the registered device is known, corporate-owned, and expected
   - Check for follow-on mailbox, SharePoint, Teams, or Graph API access after registration
 validation:
@@ -56,6 +60,8 @@ owner: Detection Engineering
 tags:
   - attack.initial-access
   - attack.credential-access
+  - attack.t1566
+  - attack.t1528
   - device-code-phishing
   - entra
   - prt

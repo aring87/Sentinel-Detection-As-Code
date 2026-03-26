@@ -4,7 +4,7 @@ status: experimental
 description: Detects schtasks-based remote task creation that may indicate lateral movement or remote execution.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -14,9 +14,9 @@ query: |
   DeviceProcessEvents
   | where FileName =~ "schtasks.exe"
   | where ProcessCommandLine has_all ("/create","/s")
-  | project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
-risk_score: 75
+risk_score: 78
 tactics:
   - Lateral Movement
 techniques:
@@ -27,17 +27,21 @@ kill_chain_phases:
 data_sources:
   - DeviceProcessEvents
 falsepositives:
-  - Approved admin orchestration
-  - Enterprise job scheduling
+  - Approved administration or orchestration platforms
+  - Enterprise job scheduling across managed servers
+  - Software deployment tooling using remote scheduled tasks
 triage:
-  - Review the target host, task name, and command
-  - Determine whether remote task creation is normal for the account
-  - Inspect remote logons and service creation nearby
+  - Identify the remote target specified with /s and the task name or action
+  - Determine whether the account normally creates tasks on remote hosts
+  - Review whether the command launched script interpreters, LOLBins, or payloads from writable paths
+  - Correlate with remote logons, SMB access, WMI usage, or service creation nearby
 validation:
-  - Create a remote scheduled task in a controlled lab
+  - Create a benign remote scheduled task in a controlled lab and verify telemetry
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.lateral-movement
+  - attack.t1053.005
+  - attack.t1021
   - sentinel
   - lateral-movement

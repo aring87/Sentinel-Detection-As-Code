@@ -1,28 +1,46 @@
 title: Exfiltration Over Uncommon Port
-id: dodea-sig-022-exfiltration-over-uncommon-port
+id: SENT-EXFIL-0007
 status: experimental
-description: Detects data exfiltration using uncommon network ports
+description: Detects high-volume outbound data transfer to external destinations over uncommon ports, which may indicate nonstandard exfiltration channels.
 author: Adam Ring
-date: 2025-07-31
+date: 2026-03-26
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
+logsource:
+  product: windows
+  category: network
+query: |
+  DeviceNetworkEvents
+  | where not(ipv4_is_private(RemoteIP))
+  | where RemotePort !in (80, 443, 22, 53, 25, 587, 3389)
+  | summarize SentBytes=sum(tolong(SentBytes)), ConnCount=count(), URLs=make_set(RemoteUrl,10) by DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteIP, RemotePort, bin(Timestamp, 30m)
+  | where SentBytes > 10000000
+severity: high
+risk_score: 76
+tactics:
+  - Exfiltration
+techniques:
+  - T1048.003
+kill_chain_phases:
+  - Exfiltration
+data_sources:
+  - DeviceNetworkEvents
+falsepositives:
+  - Approved applications using nonstandard transfer ports
+  - Backup or replication tools
+  - Specialized vendor or engineering software
+triage:
+  - Review the process, port, and destination involved in the transfer
+  - Determine whether the port is expected for the application or host
+  - Check whether collection, archive creation, or staging preceded the outbound traffic
+  - Inspect for recurring beaconing or additional exfiltration destinations
+validation:
+  - Generate benign outbound traffic over a nonstandard port in a lab and tune thresholds
+lifecycle: experimental
+owner: Detection Engineering
 tags:
   - attack.exfiltration
   - attack.t1048.003
-  - ckc.exfiltration
-logsource:
-  product: windows
-  category: process_creation
-detection:
-  selection:
-    query: >-
-      DeviceNetworkEvents| where RemotePort !in (80, 443, 22, 53)
-
-      | where SentBytes > 10000000| project TimeGenerated, DeviceName, RemoteIP, RemotePort, SentBytes
-  condition: selection
-falsepositives:
-  - None known
-level: high
-tactics:
+  - sentinel
   - exfiltration
-techniques:
-  - t1048.003
-lifecycle: experimental

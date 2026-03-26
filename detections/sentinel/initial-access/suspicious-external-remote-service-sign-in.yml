@@ -4,7 +4,7 @@ status: experimental
 description: Detects successful external sign-ins to remote access or administrative services that may represent abuse of external remote services.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -13,9 +13,9 @@ logsource:
 query: |
   SigninLogs
   | where ResultType == 0
-  | where IPAddress !startswith "10." and IPAddress !startswith "192.168."
+  | where not(ipv4_is_private(IPAddress))
   | where AppDisplayName has_any ("Azure Portal","Windows Sign In","VPN","Remote Desktop")
-  | project TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName, Location, ConditionalAccessStatus
+  | project TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName, Location, ConditionalAccessStatus, RiskLevelAggregated, UserAgent
 severity: high
 risk_score: 70
 tactics:
@@ -29,15 +29,18 @@ data_sources:
 falsepositives:
   - Authorized travel or remote administration
   - Known VPN gateways or managed remote services
+  - Contractor or support access from approved locations
 triage:
   - Review location, device, and identity risk context
-  - Compare to the user's baseline sign-in patterns
-  - Correlate with endpoint remote access events
+  - Compare the sign-in to the user's normal baseline
+  - Correlate with endpoint remote access events, device registration, or mailbox access
+  - Determine whether the source IP maps to expected VPN, cloud, or remote support infrastructure
 validation:
-  - Validate against known remote access scenarios in your environment
+  - Validate against known remote access scenarios and public-IP sign-in baselines in your environment
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.initial-access
+  - attack.t1133
   - sentinel
   - initial-access

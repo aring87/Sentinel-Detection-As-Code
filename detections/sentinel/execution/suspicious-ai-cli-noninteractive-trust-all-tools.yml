@@ -1,51 +1,45 @@
-title: Suspicious AI CLI Non-Interactive Trust-All-Tools Execution
-id: SENT-EXEC-0005
+title: Suspicious AI CLI Noninteractive Trust-All-Tools Execution
+id: SENT-EXEC-0007
 status: experimental
-description: Detects potentially risky AI CLI execution patterns such as non-interactive sessions with trust-all-tools semantics or MCP-related tooling, aligned to Red Canary reporting on threats to AI infrastructure and prompt-injection-driven agent abuse.
+description: Detects noninteractive AI CLI execution patterns with trust-all-tools style flags that may enable unattended risky tool use or agentic execution.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
-logsource:
-  product: windows
-  service: process_creation
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: windows
+  category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("q.exe","claude.exe","claude-code.exe","cursor.exe","code.exe","node.exe","python.exe")
-  | where ProcessCommandLine has_any ("--trust-all-tools","--no-interactive","mcp","model context protocol","amazon q","claude code")
-  | project Timestamp,DeviceName,InitiatingProcessAccountName,InitiatingProcessFileName,FileName,ProcessCommandLine
-severity: high
-risk_score: 74
+  | where FileName in~ ("claude.exe","claude.cmd","aider.exe","aider.cmd","cursor.exe","gemini.exe","gemini.cmd","openai.exe","openai.cmd")
+      or ProcessCommandLine has_any ("claude ","aider ","cursor ","gemini ","openai ")
+  | where ProcessCommandLine has_any ("--non-interactive","--yes","--force","--dangerously-skip-permissions","--trust-all-tools","--approve-all")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
+severity: medium
+risk_score: 68
 tactics:
   - Execution
-  - Initial Access
 techniques:
   - T1059
-  - T1195
 kill_chain_phases:
   - Execution
-  - Initial Access
 data_sources:
   - DeviceProcessEvents
 falsepositives:
-  - Approved AI engineering workflows
-  - Development labs testing MCP servers or AI CLI tooling
+  - Approved engineering automation using AI tooling in CI or controlled lab environments
+  - Internal development workflows with sanctioned noninteractive agents
 triage:
-  - Review whether the host is an approved AI development or engineering system
-  - Validate whether the command included non-interactive or trust-all-tools semantics
-  - Check for access to code repositories, secrets, or sensitive data sources after execution
-  - Review network destinations and spawned child processes for prompt-injection or agent hijacking indicators
+  - Determine whether the host is an approved engineering or lab asset
+  - Review whether the tool executed with broad approval flags or unattended permissions
+  - Check for follow-on file modification, code execution, credential access, or network egress
 validation:
-  - Test in a lab with approved AI CLI tooling and tune for sanctioned engineering hosts
+  - Run a benign AI CLI in a lab with noninteractive flags and compare with expected developer workflows
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.execution
-  - attack.initial-access
   - attack.t1059
-  - attack.t1195
-  - ai-cli
-  - mcp
-  - prompt-injection
   - sentinel
+  - execution
+  - ai-cli

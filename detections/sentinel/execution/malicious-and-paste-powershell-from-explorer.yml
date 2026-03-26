@@ -1,49 +1,48 @@
-title: Malicious Copy and Paste PowerShell from Explorer
-id: SENT-EXEC-0004
-status: stable
-description: Detects likely paste-and-run or FileFix-style execution where explorer launches PowerShell, CMD, or LOLBins with suspicious download, hidden, or obfuscated arguments. Inspired by Red Canary reporting on Malicious Copy and Paste / paste-and-run campaigns.
+title: Paste-and-Run Shell or Script Execution from Explorer
+id: SENT-EXEC-0005
+status: testing
+description: Detects likely copy-paste execution behavior launched from Explorer or shell context into PowerShell, CMD, or common script interpreters.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
-logsource:
-  product: windows
-  service: process_creation
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: windows
+  category: process_creation
 query: |
+  let ScriptBins = dynamic(["powershell.exe","pwsh.exe","cmd.exe","wscript.exe","cscript.exe","mshta.exe","rundll32.exe"]);
   DeviceProcessEvents
-  | where FileName in~ ("powershell.exe","pwsh.exe","cmd.exe","wscript.exe","cscript.exe","mshta.exe","rundll32.exe")
-  | where InitiatingProcessFileName =~ "explorer.exe"
-  | where ProcessCommandLine has_any ("curl ","iwr ","irm ","downloadstring","frombase64string","-enc","-encodedcommand","hidden","invoke-expression","iex ","mshta ","javascript:")
-  | project Timestamp,DeviceName,InitiatingProcessAccountName,InitiatingProcessFileName,FileName,ProcessCommandLine,InitiatingProcessCommandLine
+  | where InitiatingProcessFileName in~ ("explorer.exe")
+  | where FileName in~ (ScriptBins)
+  | where ProcessCommandLine has_any ("http://","https://","-enc","-encodedcommand","frombase64string","invoke-expression"," iwr "," irm ","curl ","wget ","javascript:","cmd /c","powershell -")
+  | project Timestamp, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, SHA1, SHA256, ReportId
 severity: high
-risk_score: 78
+risk_score: 80
 tactics:
   - Execution
 techniques:
   - T1059
-  - T1204
+  - T1204.001
 kill_chain_phases:
   - Execution
 data_sources:
   - DeviceProcessEvents
 falsepositives:
-  - Administrator launching scripts manually from Explorer
-  - Internal troubleshooting workflows using PowerShell from the Run dialog
+  - Administrator troubleshooting from Explorer shell context
+  - Developer testing of shell commands
+  - Approved internal tools launched interactively by users
 triage:
-  - Review the full ProcessCommandLine for download, obfuscation, or hidden execution patterns
-  - Determine whether the user was likely interacting with a browser-based lure or fake verification prompt
-  - Check for recent browser activity, clipboard-related alerts, or suspicious child process chains
-  - Review whether the command downloaded or launched follow-on payloads such as RMM tools or stealers
+  - Review whether the user was instructed to paste a command into Run, PowerShell, or CMD
+  - Inspect the command for download, decode, or remote execution behavior
+  - Check for nearby browser activity, fake CAPTCHA lures, helpdesk scams, or Quick Assist sessions
 validation:
-  - Test with Atomic Red Team or a benign PowerShell command launched from the Run dialog that mimics paste-and-run flow
+  - Launch benign PowerShell or CMD commands from Explorer and compare with suspicious paste-and-run patterns
 lifecycle: testing
 owner: Detection Engineering
 tags:
   - attack.execution
   - attack.t1059
-  - attack.t1204
-  - paste-and-run
-  - clickfix
-  - fakecaptcha
+  - attack.t1204.001
   - sentinel
+  - execution

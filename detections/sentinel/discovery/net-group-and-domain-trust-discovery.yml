@@ -4,7 +4,7 @@ status: experimental
 description: Detects use of built-in tools to enumerate group membership, domain trust, and domain information.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,9 +12,9 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("net.exe","nltest.exe","dsquery.exe","whoami.exe")
-  | where ProcessCommandLine has_any ("group","localgroup","domain_trusts","/domain","/all_trusts","/user")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | where FileName in~ ("net.exe","net1.exe","nltest.exe","dsquery.exe","whoami.exe")
+  | where ProcessCommandLine has_any ("group","localgroup","/domain","/all_trusts","/trusted_domains","/user")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId
 severity: medium
 risk_score: 55
 tactics:
@@ -32,13 +32,16 @@ falsepositives:
   - Inventory or audit scripts
 triage:
   - Review the exact group or trust discovery commands
-  - Determine whether the user normally performs domain recon
+  - Determine whether the user normally performs domain reconnaissance
   - Check for concurrent lateral movement or credential access
 validation:
-  - Run net group, nltest, and whoami discovery commands in a lab
+  - Run net group, nltest, dsquery, and whoami discovery commands in a lab
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.discovery
+  - attack.t1069
+  - attack.t1482
+  - attack.t1087
   - sentinel
   - discovery

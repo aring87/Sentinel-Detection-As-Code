@@ -1,36 +1,54 @@
 title: Potential Remote SMB Encryption From Single Source Host
-id: 92b0d16e-63d7-467b-a912-cs-2026-0004
+id: SENT-IMPACT-0005
 status: testing
 description: Detects high-volume file modifications over SMB from a single source to many files in a short window, consistent with remote encryption tradecraft.
-author: OpenAI
+author: Adam Ring
 date: 2026-03-25
-tags:
-  - attack.impact
-  - attack.lateral_movement
-  - attack.t1486
-  - attack.t1021.002
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
 logsource:
   product: windows
-  service: security_events
-detection:
-  query: |
-    SecurityEvent
-    | where EventID in (5145,5140)
-    | extend Share=tostring(ShareName),Ip=tostring(IpAddress),User=tostring(Account),Target=tostring(RelativeTargetName)
-    | where Share has "\\" or Share in~ ("\\\\*\\C$","\\\\*\\ADMIN$")
-    | summarize FileTouchCount=count(),Targets=dcount(Target),Shares=make_set(Share,20),SampleTargets=make_set(Target,20) by bin(TimeGenerated,10m),Ip,User,Computer
-    | where FileTouchCount >= 100 or Targets >= 50
-    | project TimeGenerated,Computer,Ip,User,FileTouchCount,Targets,Shares,SampleTargets
-  condition: query
-falsepositives:
-  - Backup software
-  - Large-scale file migration
-  - Enterprise software deployment touching many shares
-level: high
+  category: security_events
+query: |
+  SecurityEvent
+  | where EventID in (5145, 5140)
+  | extend Share=tostring(ShareName), Ip=tostring(IpAddress), User=tostring(Account), Target=tostring(RelativeTargetName)
+  | where Share has "\\" or Share in~ ("\\\\*\\C$","\\\\*\\ADMIN$")
+  | summarize FileTouchCount=count(), Targets=dcount(Target), Shares=make_set(Share,20), SampleTargets=make_set(Target,20) by bin(TimeGenerated, 10m), Ip, User, Computer
+  | where FileTouchCount >= 100 or Targets >= 50
+  | project TimeGenerated, Computer, Ip, User, FileTouchCount, Targets, Shares, SampleTargets
+severity: high
+risk_score: 88
 tactics:
   - Impact
   - Lateral Movement
 techniques:
   - T1486
   - T1021.002
+kill_chain_phases:
+  - Impact
+  - Lateral Movement
+data_sources:
+  - SecurityEvent
+falsepositives:
+  - Backup software
+  - Large-scale file migration
+  - Enterprise software deployment touching many shares
+triage:
+  - Review the source host, source user, share names, and affected targets
+  - Determine whether the source system is managed, expected, or part of backup infrastructure
+  - Check for encryption extensions, ransom note writes, or recovery tampering on impacted hosts
+  - Review whether the same source host shows credential theft, remote admin activity, or Quick Assist/RMM behavior
+validation:
+  - Simulate benign bulk SMB file operations and compare with suspicious rename or write bursts
 lifecycle: testing
+owner: Detection Engineering
+tags:
+  - attack.impact
+  - attack.lateral-movement
+  - attack.t1486
+  - attack.t1021.002
+  - smb
+  - sentinel
+  - impact

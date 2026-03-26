@@ -1,10 +1,10 @@
 title: Potential LSASS Memory Dump
 id: SENT-CRED-0002
 status: experimental
-description: Detects common LSASS dumping tools and command lines used to extract credentials from memory.
+description: Detects common LSASS dumping tools, modules, and command lines used to extract credentials from memory.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,8 +12,9 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where ProcessCommandLine has_any ("lsass","MiniDumpWriteDump","comsvcs.dll, MiniDump","procdump","sekurlsa")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName
+  | where ProcessCommandLine has_any ("lsass","MiniDumpWriteDump","comsvcs.dll","MiniDump","procdump","sekurlsa")
+      or FileName in~ ("procdump.exe","procdump64.exe","rundll32.exe","mimikatz.exe")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 85
 tactics:
@@ -27,10 +28,11 @@ data_sources:
 falsepositives:
   - Approved memory forensics or EDR actions
   - Authorized security testing
+  - Rare support or crash-dump workflows
 triage:
-  - Identify the dumping utility and target process
-  - Check whether a dump file was written to disk
-  - Correlate with privilege escalation or lateral movement
+  - Identify the dumping utility, target process, and execution context
+  - Check whether a dump file was written to disk or staged for exfiltration
+  - Correlate with privilege escalation, token abuse, or lateral movement
 validation:
   - Run a lab-only LSASS dump simulation and confirm telemetry
 lifecycle: experimental
@@ -39,4 +41,5 @@ tags:
   - attack.credential-access
   - attack.t1003.001
   - sentinel
+  - lsass
   - credential-access
