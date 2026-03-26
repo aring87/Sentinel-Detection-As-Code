@@ -107,6 +107,95 @@ Planned future growth includes:
 
 ---
 
+## Detection Content Cleanup and Standardization
+
+This repository recently underwent a broad cleanup and normalization effort across the Microsoft Sentinel detection catalog and supporting triage content.
+
+### What was updated
+
+- reviewed Sentinel detections across all major tactic folders for:
+  - duplicate titles
+  - duplicate IDs
+  - overlapping or near-duplicate analytics
+  - outdated schema formats
+  - inconsistent metadata
+  - weak or overly broad detection logic
+
+- standardized detection content into a more consistent Sentinel-friendly schema, including fields such as:
+  - `platform`
+  - `query_language`
+  - `severity`
+  - `risk_score`
+  - `data_sources`
+  - `triage`
+  - `validation`
+  - `lifecycle`
+  - `owner`
+  - normalized `tags`
+
+- corrected content quality issues such as:
+  - duplicate rule IDs
+  - conflicting `status` and `lifecycle` values
+  - inconsistent ATT&CK mappings
+  - unrealistic false positive sections
+  - legacy or package-style YAML structures that did not match the repository standard
+
+- improved detection quality by:
+  - tightening noisy logic
+  - improving KQL consistency
+  - adding richer process, registry, file, and network context
+  - refining multi-source correlation logic
+  - separating broad foundational detections from narrower higher-fidelity companion analytics
+  - retiring or replacing weaker legacy duplicates where stronger rules already existed
+
+### Areas reviewed
+
+The cleanup covered content across:
+
+- `browser`
+- `collection`
+- `command-and-control`
+- `credential-access`
+- `defense-evasion`
+- `discovery`
+- `execution`
+- `exfiltration`
+- `impact`
+- `initial-access`
+- `lateral-movement`
+- `persistence`
+- `privilege-escalation`
+- `reconnaissance`
+- `resource-development`
+
+### Key outcomes
+
+- cleaner rule placement by tactic folder
+- fewer duplicate and near-duplicate analytics
+- more consistent metadata and schema structure
+- improved ATT&CK alignment
+- better analyst-facing triage guidance
+- clearer distinction between:
+  - foundational broad detections
+  - higher-fidelity specialized detections
+  - deprecated or legacy content
+
+### Triage guide improvements
+
+Related triage guides were also reviewed and rewritten into a more complete analyst-playbook format. Updated guides now better align with detection logic and include clearer investigation flow, escalation criteria, and response guidance.
+
+### Current direction
+
+The repository is continuing to mature toward a more governed detection engineering model with:
+
+- stronger detection-as-code standards
+- better lifecycle management
+- improved quality control and validation
+- more consistent triage support
+- cleaner promotion from `experimental` to `testing` to `production`
+
+---
+
 ## Detection Lifecycle
 
 Detection content should move through a controlled lifecycle:
