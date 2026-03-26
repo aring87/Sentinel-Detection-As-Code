@@ -1,0 +1,276 @@
+# Suspicious Access to Sensitive Local User Documents Triage Guide
+
+## Rule Overview
+
+**Title:** Suspicious Access to Sensitive Local User Documents  
+**Rule ID:** SENT-COLL-0005  
+**Severity:** Medium  
+**Risk Score:** 57  
+**Tactic:** Collection  
+**Technique:** T1005 - Data from Local System  
+**Platform:** Microsoft Sentinel  
+**Data Source:** DeviceFileEvents  
+**Lifecycle:** Experimental
+
+## Purpose
+
+This detection identifies processes accessing potentially sensitive document types in common user data paths, which may indicate collection or staging from the local system.
+
+This matters because attackers often target user documents during collection activity in order to gather:
+
+- Business documents
+- PDFs
+- Financial spreadsheets
+- Presentations
+- CSV exports
+- Notes or text files containing sensitive information
+
+## Detection Logic Summary
+
+The rule reviews `DeviceFileEvents` for:
+
+- `FileCreated`
+- `FileModified`
+- `FileRead`
+- `FileAccessed`
+
+It focuses on file activity in common user data paths such as:
+
+- `\Users\`
+- `\Desktop\`
+- `\Documents\`
+- `\Downloads\`
+
+It includes document types such as:
+
+- `.docx`
+- `.pdf`
+- `.xls`
+- `.xlsx`
+- `.csv`
+- `.pptx`
+- `.txt`
+
+It excludes common expected processes such as:
+
+- `explorer.exe`
+- `SearchIndexer.exe`
+- `OneDrive.exe`
+- `MsMpEng.exe`
+
+The rule alerts when a process accesses at least 25 files across at least 3 distinct paths in a 15-minute window.
+
+## Likely Analyst Goal
+
+Determine whether the file access was:
+
+- Normal business activity
+- Backup, indexing, sync, or anti-malware behavior
+- Approved enterprise tooling
+- Suspicious local document collection or staging
+
+## Initial Triage Questions
+
+1. What process accessed the files?
+2. Which user was involved?
+3. Is this level of document access normal for the host or user?
+4. Are the accessed file types sensitive for that role?
+5. Did archive, upload, or transfer behavior follow?
+
+---
+
+## Investigation Steps
+
+### 1. Review the Process and Account
+
+Inspect:
+
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `InitiatingProcessAccountName`
+
+Determine whether the process is:
+
+- Common and trusted
+- Rare in the environment
+- Running from a suspicious path
+- Associated with scripting, automation, or portable tooling
+
+**Why this matters:**  
+The process identity is one of the main clues for separating legitimate bulk access from suspicious collection.
+
+---
+
+### 2. Review the Scope of File Access
+
+Evaluate:
+
+- Number of files accessed
+- Number of folders involved
+- Types of documents accessed
+- Whether the activity was concentrated in user data paths
+
+Determine whether the files appear to represent:
+
+- Normal working documents
+- Sensitive business content
+- Broad user data harvesting
+
+**Why this matters:**  
+Wide file access across multiple user directories is consistent with collection or staging workflows.
+
+---
+
+### 3. Determine Whether the Activity Is Expected
+
+Ask:
+
+- Is the process a backup, sync, or document management tool?
+- Is the user performing bulk review, migration, or archiving?
+- Is the activity associated with approved business software?
+- Does the role normally involve opening many documents?
+
+**Why this matters:**  
+Legitimate tools can generate noisy document access patterns.
+
+---
+
+### 4. Check for Follow-On Staging or Exfiltration
+
+Review whether the activity was followed by:
+
+- Archive creation
+- Cloud upload
+- Email attachment activity
+- Removable media use
+- Network transfer
+- File compression
+- Copies into temp or staging directories
+
+**Why this matters:**  
+Document access followed by staging or transfer is much more suspicious than document access alone.
+
+---
+
+### 5. Review the Execution Context
+
+Check:
+
+- Parent process
+- Signer information
+- Execution path
+- Whether the binary is known and prevalent
+- Whether it launched from a user-writable location
+
+Pay special attention to:
+
+- PowerShell
+- Rare executables
+- Temp directory launches
+- Unsigned binaries
+
+**Why this matters:**  
+Execution context helps determine whether the activity is enterprise tooling or suspicious collection.
+
+---
+
+### 6. Assess User and Device Context
+
+Review:
+
+- Whether the host is high value
+- Whether the account is privileged
+- Whether the device has recent suspicious alerts
+- Whether similar activity is normal on that system
+
+**Why this matters:**  
+Collection activity on finance, HR, executive, or admin systems may raise priority.
+
+---
+
+## Benign Explanations
+
+Common legitimate scenarios include:
+
+1. Backup, indexing, sync, or anti-malware activity
+2. Bulk document processing by IT or approved business tooling
+3. User-driven search, migration, or archival workflows
+
+---
+
+## Suspicious Indicators
+
+Escalate concern when you observe:
+
+- Unknown or rare process touching many documents
+- Execution from temp or user profile paths
+- Sensitive file types across many directories
+- File access followed by compression or upload
+- Similar behavior on other hosts tied to the same account
+- Additional collection or exfiltration alerts nearby
+
+---
+
+## Triage Decision
+
+### Close as Benign / False Positive
+
+Close as benign when:
+
+- The process is an approved business or enterprise tool
+- The account and host commonly perform bulk file operations
+- No staging or exfiltration activity is observed
+
+### Escalate as Suspicious
+
+Escalate when:
+
+- The process is uncommon or poorly understood
+- The file access volume is unusual for the user or host
+- Follow-on staging or transfer activity is present
+
+### Escalate as Likely Malicious
+
+Escalate as likely malicious when:
+
+- Bulk document access is tied to suspicious tooling
+- Archive, transfer, or exfiltration clearly follows
+- The host shows broader compromise evidence
+
+---
+
+## Response Actions
+
+Depending on findings, consider:
+
+- Isolating the host if large-scale collection is suspected
+- Collecting the process binary and hash
+- Hunting for the same process across the environment
+- Reviewing cloud, email, and removable media activity
+- Escalating to incident response if staging or exfiltration is confirmed
+
+---
+
+## Example Analyst Notes Template
+
+### Analyst Summary
+
+Alert fired for suspicious access to sensitive local user documents, potentially indicating collection or staging from the local system.
+
+### Key Findings
+
+- **Affected device:**  
+- **Affected user:**  
+- **Process:**  
+- **Command line:**  
+- **Files accessed:**  
+- **Folders involved:**  
+- **Expected business purpose:**  
+- **Nearby archive or upload activity:**  
+- **Final assessment:**  
+
+### Recommended Disposition
+
+- Benign / False Positive
+- Suspicious - Needs Deeper Investigation
+- Confirmed Malicious
