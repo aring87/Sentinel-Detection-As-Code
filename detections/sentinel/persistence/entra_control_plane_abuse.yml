@@ -1,0 +1,36 @@
+title: Suspicious Entra ID Control-Plane Changes by Nonstandard Actor
+id: 1e0f3f74-f607-4ad4-b31c-cs-2026-0005
+status: production
+description: Detects risky Entra ID and hybrid identity control-plane changes, including conditional access modifications, authentication method changes, and app credential updates by unusual actors.
+author: OpenAI
+date: 2026-03-25
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.defense_evasion
+  - attack.t1098
+  - attack.t1556
+logsource:
+  product: azure
+  service: auditlogs
+detection:
+  query: |
+    AuditLogs
+    | where OperationName has_any ("Update conditional access policy","Add authentication method","Register security info","Add service principal credentials","Update application","Add owner to application","Add app role assignment","Add federated identity credential")
+       or ActivityDisplayName has_any ("Update conditional access policy","Add authentication method","Register security info","Add service principal credentials","Update application","Add federated identity credential")
+    | extend Actor=coalesce(tostring(InitiatedBy.user.userPrincipalName),tostring(InitiatedBy.app.displayName))
+    | extend Target=tostring(TargetResources[0].displayName)
+    | project TimeGenerated,OperationName,ActivityDisplayName,Actor,Target,Result,ResultReason,Category,LoggedByService,AdditionalDetails
+  condition: query
+falsepositives:
+  - Legitimate IAM administration
+  - Planned conditional access changes
+level: high
+tactics:
+  - Persistence
+  - Privilege Escalation
+  - Defense Evasion
+techniques:
+  - T1098
+  - T1556
+lifecycle: production

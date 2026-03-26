@@ -1,0 +1,35 @@
+title: Suspicious Microsoft 365 Inbox Rule for Forwarding or Deletion
+id: 7b3d6d8b-a0de-48c9-b84b-cs-2026-0006
+status: production
+description: Detects creation or modification of inbox rules that forward, redirect, delete, or hide emails, including security notifications, in Microsoft 365.
+author: OpenAI
+date: 2026-03-25
+tags:
+  - attack.persistence
+  - attack.collection
+  - attack.defense_evasion
+  - attack.t1114.003
+  - attack.t1564
+logsource:
+  product: m365
+  service: unified_audit_log
+detection:
+  query: |
+    OfficeActivity
+    | where Operation in~ ("New-InboxRule","Set-InboxRule")
+    | extend Params=tostring(Parameters)
+    | where Params has_any ("ForwardTo","RedirectTo","DeleteMessage","MoveToFolder","MarkAsRead","StopProcessingRules")
+    | project TimeGenerated,UserId,Operation,OfficeWorkload,ClientIP,Parameters,ResultStatus
+  condition: query
+falsepositives:
+  - User-created mailbox organization rules
+  - Admin-created support workflows
+level: high
+tactics:
+  - Persistence
+  - Collection
+  - Defense Evasion
+techniques:
+  - T1114.003
+  - T1564
+lifecycle: production

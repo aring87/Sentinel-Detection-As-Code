@@ -1,0 +1,40 @@
+title: Suspicious Fake CAPTCHA Browser-to-Script Execution Chain
+id: 4f6b0b92-7b7e-4f34-9d56-cs-2026-0001
+status: experimental
+description: Detects likely fake CAPTCHA or browser lure activity followed by script interpreter or LOLBin execution.
+author: OpenAI
+date: 2026-03-25
+tags:
+  - attack.initial_access
+  - attack.execution
+  - attack.t1204.001
+  - attack.t1059
+  - attack.t1059.001
+  - attack.t1059.003
+  - attack.t1218
+logsource:
+  product: windows
+  service: microsoft_defender_xdr
+detection:
+  query: |
+    let BrowserProcs=dynamic(["chrome.exe","msedge.exe","firefox.exe","brave.exe","iexplore.exe"]);
+    let ChildProcs=dynamic(["powershell.exe","pwsh.exe","cmd.exe","wscript.exe","cscript.exe","mshta.exe","rundll32.exe","regsvr32.exe"]);
+    DeviceProcessEvents
+    | where InitiatingProcessFileName in~ (BrowserProcs)
+    | where FileName in~ (ChildProcs)
+    | where ProcessCommandLine has_any ("frombase64string","invoke-expression"," iwr "," irm ","curl ","wget ","bitsadmin","javascript:","http://","https://")
+    | extend ParentProcess=InitiatingProcessFileName,ChildProcess=FileName
+    | project Timestamp,DeviceName,AccountName,ParentProcess,InitiatingProcessCommandLine,ChildProcess,ProcessCommandLine,SHA1,SHA256,ReportId
+  condition: query
+falsepositives:
+  - Administrator script testing launched from a browser
+  - Internal software portals that intentionally launch local tools
+level: high
+tactics:
+  - Initial Access
+  - Execution
+techniques:
+  - T1204.001
+  - T1059.001
+  - T1059.003
+lifecycle: experimental

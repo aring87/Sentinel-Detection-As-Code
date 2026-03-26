@@ -1,0 +1,36 @@
+title: Potential Remote SMB Encryption From Single Source Host
+id: 92b0d16e-63d7-467b-a912-cs-2026-0004
+status: testing
+description: Detects high-volume file modifications over SMB from a single source to many files in a short window, consistent with remote encryption tradecraft.
+author: OpenAI
+date: 2026-03-25
+tags:
+  - attack.impact
+  - attack.lateral_movement
+  - attack.t1486
+  - attack.t1021.002
+logsource:
+  product: windows
+  service: security_events
+detection:
+  query: |
+    SecurityEvent
+    | where EventID in (5145,5140)
+    | extend Share=tostring(ShareName),Ip=tostring(IpAddress),User=tostring(Account),Target=tostring(RelativeTargetName)
+    | where Share has "\\" or Share in~ ("\\\\*\\C$","\\\\*\\ADMIN$")
+    | summarize FileTouchCount=count(),Targets=dcount(Target),Shares=make_set(Share,20),SampleTargets=make_set(Target,20) by bin(TimeGenerated,10m),Ip,User,Computer
+    | where FileTouchCount >= 100 or Targets >= 50
+    | project TimeGenerated,Computer,Ip,User,FileTouchCount,Targets,Shares,SampleTargets
+  condition: query
+falsepositives:
+  - Backup software
+  - Large-scale file migration
+  - Enterprise software deployment touching many shares
+level: high
+tactics:
+  - Impact
+  - Lateral Movement
+techniques:
+  - T1486
+  - T1021.002
+lifecycle: testing

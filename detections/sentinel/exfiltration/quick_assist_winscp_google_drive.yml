@@ -1,0 +1,52 @@
+title: Quick Assist Followed by WinSCP or Google Drive Exfiltration Activity
+id: a6d3cb10-c9b9-4d59-9f1d-cs-2026-0002
+status: testing
+description: Detects a likely vishing-driven intrusion chain where Microsoft Quick Assist is followed by WinSCP execution or Google Drive access from the same device shortly after initial access.
+author: OpenAI
+date: 2026-03-25
+tags:
+  - attack.initial_access
+  - attack.command_and_control
+  - attack.exfiltration
+  - attack.t1219
+  - attack.t1105
+  - attack.t1567.002
+logsource:
+  product: windows
+  service: microsoft_defender_xdr
+detection:
+  query: |
+    let qa_window=30m;
+    let QA=DeviceProcessEvents
+    | where FileName in~ ("QuickAssist.exe","QuickAssistLauncher.exe")
+    | project QAStart=Timestamp,DeviceId,DeviceName,QAAccount=AccountName,QACommand=ProcessCommandLine;
+    let WinSCP=DeviceProcessEvents
+    | where FileName in~ ("WinSCP.exe","winscp.com")
+    | project WTime=Timestamp,DeviceId,WinProc=FileName,WinCmd=ProcessCommandLine;
+    let GDrive=DeviceNetworkEvents
+    | where RemoteUrl has_any ("drive.google.com","docs.google.com")
+    | project GTime=Timestamp,DeviceId,RemoteUrl,InitiatingProcessFileName,InitiatingProcessCommandLine;
+    QA
+    | join kind=leftouter WinSCP on DeviceId
+    | where isnotempty(WTime) and WTime between (QAStart .. QAStart + qa_window)
+    | project Timestamp=QAStart,DeviceName,QAAccount,QACommand,FollowOnTime=WTime,FollowOnType="WinSCP",Evidence=WinCmd
+    | union (
+        QA
+        | join kind=leftouter GDrive on DeviceId
+        | where isnotempty(GTime) and GTime between (QAStart .. QAStart + qa_window)
+        | project Timestamp=QAStart,DeviceName,QAAccount,QACommand,FollowOnTime=GTime,FollowOnType="GoogleDrive",Evidence=strcat(InitiatingProcessFileName," | ",InitiatingProcessCommandLine," | ",RemoteUrl)
+      )
+    | order by Timestamp desc
+  condition: query
+falsepositives:
+  - Legitimate remote support sessions followed by approved file transfer
+  - Help desk activity
+level: high
+tactics:
+  - Initial Access
+  - Exfiltration
+techniques:
+  - T1219
+  - T1105
+  - T1567.002
+lifecycle: testing

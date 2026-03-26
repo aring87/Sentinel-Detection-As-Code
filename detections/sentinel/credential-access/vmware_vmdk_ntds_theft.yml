@@ -1,0 +1,41 @@
+title: VMware vCenter VMDK Attach-Detach Activity Potentially Related to NTDS Theft
+id: c4e2ee3d-1f30-4f87-95fd-cs-2026-0003
+status: testing
+description: Detects suspicious VMware vCenter activity consistent with adversary-controlled unmanaged VM creation, VMDK detach/attach, and possible credential dumping from a virtualized domain controller.
+author: OpenAI
+date: 2026-03-25
+tags:
+  - attack.credential_access
+  - attack.defense_evasion
+  - attack.discovery
+  - attack.t1003.003
+  - attack.t1562
+  - attack.t1201
+logsource:
+  product: vmware
+  service: vcenter
+detection:
+  query: |
+    VMware_CL
+    | where RawData has_any ("VMDK","vmdk","detach","attach","reconfigure","VmReconfiguredEvent","VmDiskAttachedEvent","VmDiskDetachedEvent","CreateVM","RegisterVM","PowerOnVM_Task")
+    | extend LowerRaw=tolower(RawData)
+    | extend SuspicionScore=0
+    | extend SuspicionScore=SuspicionScore + iff(LowerRaw has "detach",1,0)
+    | extend SuspicionScore=SuspicionScore + iff(LowerRaw has "attach",1,0)
+    | extend SuspicionScore=SuspicionScore + iff(LowerRaw has "vmdk",1,0)
+    | extend SuspicionScore=SuspicionScore + iff(LowerRaw has "createvm" or LowerRaw has "registervm",1,0)
+    | extend SuspicionScore=SuspicionScore + iff(LowerRaw has "poweronvm",1,0)
+    | where SuspicionScore >= 3
+    | project TimeGenerated,Computer,RawData,SuspicionScore
+  condition: query
+falsepositives:
+  - Legitimate VMware recovery, migration, backup, or maintenance operations
+level: high
+tactics:
+  - Credential Access
+  - Defense Evasion
+  - Discovery
+techniques:
+  - T1003.003
+  - T1562
+lifecycle: testing
