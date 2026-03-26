@@ -1,0 +1,288 @@
+# Suspicious Screen Capture Utility Execution Triage Guide
+
+## Rule Overview
+
+**Title:** Suspicious Screen Capture Utility Execution  
+**Rule ID:** SENT-COLL-0003  
+**Status:** Experimental  
+**Severity:** Medium  
+**Risk Score:** 56  
+**Tactic:** Collection  
+**Technique:** T1113 - Screen Capture  
+**Platform:** Microsoft Sentinel  
+**Data Source:** DeviceProcessEvents  
+**Owner:** Detection Engineering
+
+## Purpose
+
+This detection identifies execution of screen capture utilities or scripted screenshot behavior that may indicate collection of user session data.
+
+This matters because attackers may capture screenshots to collect:
+
+- Credentials displayed on screen
+- MFA prompts or codes
+- Sensitive internal documents
+- Remote session activity
+- User workflows and visible data
+
+## Detection Logic Summary
+
+The rule reviews `DeviceProcessEvents` and looks for execution of known screen capture tools such as:
+
+- `psr.exe`
+- `nircmd.exe`
+- `snippingtool.exe`
+- `snipaste.exe`
+
+It also looks for command lines containing screenshot-related terms such as:
+
+- `screenshot`
+- `capturedesktop`
+- `saveimage`
+- `screen capture`
+
+The rule assigns a **SuspicionScore** based on the following logic:
+
+- `+2` if the process is `nircmd.exe` or `snipaste.exe`
+- `+2` if the command line contains `capturedesktop`, `saveimage`, or `screenshot`
+- `+2` if the initiating process is one of:
+  - `powershell.exe`
+  - `pwsh.exe`
+  - `cmd.exe`
+  - `wscript.exe`
+  - `cscript.exe`
+  - `mshta.exe`
+
+The alert fires when:
+
+- `SuspicionScore >= 2`
+
+## Likely Analyst Goal
+
+Determine whether the screen capture behavior was:
+
+- Normal user activity
+- Help desk, support, documentation, or training activity
+- Approved remote support behavior
+- Suspicious collection of on-screen data
+
+## Initial Triage Questions
+
+1. Which screen capture utility executed?
+2. Was the activity interactive or scripted?
+3. Is screenshot activity normal for this user, host, and time window?
+4. Were screenshots saved to suspicious or staging-related locations?
+5. Did clipboard access, browser credential access, archiving, or exfiltration occur nearby?
+
+---
+
+## Investigation Steps
+
+### 1. Review the Process and Command Line
+
+Inspect:
+
+- `FileName`
+- `ProcessCommandLine`
+- `AccountName`
+- `SHA1`
+- `SuspicionScore`
+
+Determine whether the activity involved:
+
+- built-in screen capture tools
+- third-party capture tools
+- explicit screenshot-related commands
+
+**Why this matters:**  
+Scripted or explicitly directed screenshot behavior is generally more suspicious than casual user screenshots.
+
+---
+
+### 2. Review the Initiating Process
+
+Inspect:
+
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+
+Pay close attention when the initiating process is:
+
+- `powershell.exe`
+- `pwsh.exe`
+- `cmd.exe`
+- `wscript.exe`
+- `cscript.exe`
+- `mshta.exe`
+
+Also determine whether the process tree suggests:
+
+- automation
+- scripting
+- hands-on-keyboard activity
+- suspicious parent-child execution
+
+**Why this matters:**  
+Screen capture launched by script interpreters or LOLBins may indicate malicious collection rather than normal user behavior.
+
+---
+
+### 3. Determine Whether the Activity Was Expected
+
+Validate whether screenshot usage makes sense for:
+
+- the user
+- the device
+- the time of day
+- the business workflow
+
+Ask:
+
+- Is this a help desk or support session?
+- Is the user creating documentation or training material?
+- Is the system used for troubleshooting or demonstrations?
+- Is this tool approved in the environment?
+
+**Why this matters:**  
+Screenshot activity can be legitimate, but it should be explainable in context.
+
+---
+
+### 4. Check for Output File Locations
+
+Review whether image files were written to locations such as:
+
+- `%TEMP%`
+- `Downloads`
+- `Desktop`
+- `AppData`
+- shared folders
+- suspected staging directories
+
+Determine whether screenshots were stored in:
+
+- normal user-accessible locations
+- hidden or temporary folders
+- paths associated with later transfer or archive activity
+
+**Why this matters:**  
+Screenshots saved into temp or staging locations may indicate preparation for exfiltration.
+
+---
+
+### 5. Hunt for Related Collection Activity
+
+Review the same time window for:
+
+- clipboard access
+- browser credential access
+- archive creation
+- file staging
+- email transfer
+- cloud upload
+- suspicious outbound network activity
+
+**Why this matters:**  
+Screen capture becomes more concerning when combined with other collection or exfiltration behaviors.
+
+---
+
+### 6. Assess User and Device Context
+
+Review:
+
+- whether the host is high value
+- whether the user is privileged
+- whether the device has additional alerts
+- whether screenshot activity is common for that system
+
+**Why this matters:**  
+Screen capture on sensitive systems may indicate collection of high-value information.
+
+---
+
+## Benign Explanations
+
+Common legitimate scenarios include:
+
+1. Legitimate user screenshots
+2. Support, documentation, or training workflows
+3. Approved remote support tooling capturing user screens
+
+## Suspicious Indicators
+
+Escalate concern when you observe:
+
+- scripted or repeated screenshot capture
+- rare or dual-use utilities such as `nircmd.exe`
+- screenshot activity launched by PowerShell, script hosts, or LOLBins
+- screenshots saved into temp or staging folders
+- nearby clipboard, credential, archive, or exfiltration activity
+- other suspicious process activity on the host
+
+## Triage Decision
+
+### Close as Benign / False Positive
+
+Close as benign when:
+
+- the screenshot activity aligns to normal user behavior
+- the tool is approved and expected
+- the timing and host context make sense
+- no related suspicious behavior is observed
+
+### Escalate as Suspicious
+
+Escalate when:
+
+- screenshot activity is unusual for the user or host
+- the process tree suggests scripting or automation
+- screenshots were saved to suspicious locations
+- nearby collection or transfer behavior is present
+
+### Escalate as Likely Malicious
+
+Escalate as likely malicious when:
+
+- evidence shows automated or stealthy screen collection
+- the activity is part of a broader compromise chain
+- exfiltration, credential theft, or staged collection is also observed
+
+## Response Actions
+
+Depending on findings, consider:
+
+- isolating the host if malicious collection is suspected
+- collecting the executed binary, hash, and command line artifacts
+- reviewing screenshot output paths and created image files
+- hunting for similar utilities and command lines across the environment
+- escalating to incident response if coordinated collection is confirmed
+
+## Example Analyst Notes Template
+
+### Analyst Summary
+
+Alert fired for suspicious screen capture utility execution, potentially indicating collection of user session data or other visible on-screen information.
+
+### Key Findings
+
+- **Affected device:**  
+- **Affected user:**  
+- **Utility executed:**  
+- **Command line:**  
+- **Initiating process:**  
+- **Suspicion score:**  
+- **Screenshot save path:**  
+- **Expected business purpose:**  
+- **Nearby collection or exfiltration activity:**  
+- **Final assessment:**  
+
+### Recommended Disposition
+
+- Benign / False Positive
+- Suspicious - Needs Deeper Investigation
+- Confirmed Malicious
+
+## Validation Guidance
+
+A useful validation method is to launch benign screen capture utilities in a lab and compare the resulting telemetry against normal user behavior and approved help desk workflows. This helps tune the rule so legitimate support and documentation activity does not create excessive noise.
