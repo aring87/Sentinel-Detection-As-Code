@@ -1,10 +1,10 @@
 title: Suspicious Service Creation for Elevation
 id: SENT-PRIVESC-0003
 status: experimental
-description: Detects service creation commands that may be used to execute code with SYSTEM privileges.
+description: Detects service creation or service configuration commands that may be used to execute code with SYSTEM privileges.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,11 +12,11 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("sc.exe","cmd.exe","powershell.exe")
-  | where ProcessCommandLine has_any (" create ","New-Service","binPath=")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | where FileName in~ ("sc.exe","cmd.exe","powershell.exe","pwsh.exe")
+  | where ProcessCommandLine has_any (" create ","New-Service","binPath=","Set-Service")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
-risk_score: 70
+risk_score: 74
 tactics:
   - Privilege Escalation
   - Persistence
@@ -28,11 +28,13 @@ data_sources:
   - DeviceProcessEvents
 falsepositives:
   - Legitimate service deployments by administrators
-  - Software installation workflows
+  - Approved software installation workflows
+  - Endpoint management or software packaging tools
 triage:
-  - Review the service name, path, and binary
-  - Determine whether the user should be creating services
-  - Correlate with service start and file creation events
+  - Review the service name, binary path, and whether the path is user-writable or newly created
+  - Determine whether the user should be creating or modifying services on the device
+  - Correlate with file creation, service start events, and any suspicious parent process
+  - Check whether the service points to LOLBins, scripts, or unsigned binaries
 validation:
   - Create a benign lab service and validate the command is captured
 lifecycle: experimental
@@ -40,5 +42,6 @@ owner: Detection Engineering
 tags:
   - attack.privilege-escalation
   - attack.persistence
+  - attack.t1543.003
   - sentinel
   - privilege-escalation

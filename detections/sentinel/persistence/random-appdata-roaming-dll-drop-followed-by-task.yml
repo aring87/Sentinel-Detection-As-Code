@@ -1,29 +1,31 @@
 title: Random AppData Roaming DLL Drop Followed by Scheduled Task
 id: SENT-PERS-0005
 status: experimental
-description: Detects DLL creation in suspicious randomly named AppData\Roaming folders followed by scheduled task creation, aligned to Red Canary reporting on CleanUpLoader execution chains.
+description: Detects DLL creation in suspicious randomly named AppData\\Roaming folders followed by scheduled task creation, a pattern aligned to CleanUpLoader-style persistence chains.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
-logsource:
-  product: windows
-  service: file_and_process
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: windows
+  category: file_and_process
 query: |
-  let dllDrops = DeviceFileEvents
-  | where ActionType in~ ("FileCreated","FileModified")
-  | where FolderPath matches regex @"\\Users\\[^\\]+\\AppData\\Roaming\\[A-Za-z0-9]{10,16}[^\\]?\\"
-  | where FileName endswith ".dll"
-  | project DeviceId, DeviceName, DropTime=Timestamp, FolderPath, FileName, InitiatingProcessAccountName;
-  let taskCreates = DeviceProcessEvents
-  | where FileName =~ "schtasks.exe"
-  | where ProcessCommandLine has "/Create"
-  | project DeviceId, TaskTime=Timestamp, TaskCmd=ProcessCommandLine, InitiatingProcessAccountName;
+  let dllDrops =
+    DeviceFileEvents
+    | where ActionType in~ ("FileCreated","FileModified")
+    | where FolderPath matches regex @"\\Users\\[^\\]+\\AppData\\Roaming\\[A-Za-z0-9]{10,16}[^\\]?\\"
+    | where FileName endswith ".dll"
+    | project DeviceId, DeviceName, DropTime=Timestamp, FolderPath, FileName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine;
+  let taskCreates =
+    DeviceProcessEvents
+    | where FileName =~ "schtasks.exe"
+    | where ProcessCommandLine has "/Create"
+    | project DeviceId, TaskTime=Timestamp, TaskCmd=ProcessCommandLine, TaskProc=FileName, InitiatingProcessAccountName;
   dllDrops
   | join kind=inner taskCreates on DeviceId
   | where TaskTime between (DropTime .. DropTime + 30m)
-  | project DeviceName, DropTime, FolderPath, FileName, TaskTime, TaskCmd, InitiatingProcessAccountName
+  | project DeviceName, DropTime, FolderPath, FileName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, TaskTime, TaskProc, TaskCmd
 severity: high
 risk_score: 84
 tactics:
@@ -38,6 +40,7 @@ data_sources:
   - DeviceProcessEvents
 falsepositives:
   - Rare software installers writing DLLs to user-profile subfolders before task creation
+  - Edge-case roaming-profile software deployments
 triage:
   - Review the dropped DLL path and whether the folder name appears random
   - Determine which executable created the DLL and whether it masqueraded as a known utility
@@ -50,6 +53,7 @@ owner: Detection Engineering
 tags:
   - attack.persistence
   - attack.t1053.005
+  - attack.t1547
   - cleanup-loader
   - appdata
   - sentinel

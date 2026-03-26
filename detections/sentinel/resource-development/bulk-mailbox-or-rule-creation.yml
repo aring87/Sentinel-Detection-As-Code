@@ -1,10 +1,10 @@
-title: Bulk Mailbox or Rule Creation
+title: Bulk Mailbox or Inbox Rule Creation Activity
 id: SENT-RESDEV-0002
 status: experimental
-description: Detects rapid mailbox or inbox-rule creation activity that may support phishing infrastructure setup.
+description: Detects bursts of mailbox or inbox-rule creation activity that may support phishing infrastructure setup, tenant staging, or suspicious mail workflow manipulation.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -19,9 +19,10 @@ severity: medium
 risk_score: 60
 tactics:
   - Resource Development
+  - Persistence
 techniques:
   - T1585
-  - T1586
+  - T1098
 kill_chain_phases:
   - Resource Development
 data_sources:
@@ -29,15 +30,22 @@ data_sources:
 falsepositives:
   - Mail migration activity
   - Bulk administrative mailbox changes
+  - Approved mailbox routing or tenant onboarding work
 triage:
-  - Review which rules or mailboxes were created
+  - Review which mailboxes or inbox rules were created or modified
   - Validate whether the initiator is an authorized Exchange administrator
-  - Check for related phishing or suspicious sign-ins
+  - Determine whether the rules support forwarding, hiding, or deletion behavior
+  - Check for related phishing setup, suspicious sign-ins, or app registration activity
 validation:
-  - Create multiple test inbox rules in a lab tenant
+  - Create multiple test inbox rules and mailbox objects in a lab tenant and tune thresholds
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.resource-development
+  - attack.persistence
+  - attack.t1585
+  - attack.t1098
+  - m365
+  - mailbox
+  - inbox-rule
   - sentinel
-  - resource-development

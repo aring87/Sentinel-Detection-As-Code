@@ -1,10 +1,10 @@
 title: External Lookup Tool Usage
 id: SENT-RECON-0003
 status: experimental
-description: Detects DNS and WHOIS lookup utilities that may be used for reconnaissance against external infrastructure.
+description: Detects use of DNS and WHOIS lookup utilities that may be used to gather external infrastructure details during reconnaissance.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -13,10 +13,10 @@ logsource:
 query: |
   DeviceProcessEvents
   | where FileName in~ ("nslookup.exe","whois.exe","dig.exe")
-  | where ProcessCommandLine has_any ("-type=","/querytype","mx","txt","soa","ns")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | where ProcessCommandLine has_any ("-type=","/querytype","mx","txt","soa","ns","any")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId
 severity: low
-risk_score: 40
+risk_score: 42
 tactics:
   - Reconnaissance
 techniques:
@@ -29,15 +29,18 @@ data_sources:
 falsepositives:
   - Legitimate DNS troubleshooting
   - Helpdesk or network operations lookups
+  - Administrator validation of mail, TXT, or name-server records
 triage:
-  - Review queried domains and record types
-  - Determine whether usage aligns with admin duties
-  - Check for nearby phishing preparation or scanning
+  - Review queried domains, record types, and frequency of use
+  - Determine whether the user or host normally performs external infrastructure lookups
+  - Check for nearby phishing preparation, scanning, or domain-registration activity
 validation:
-  - Run nslookup or dig queries for MX, TXT, or SOA records
+  - Run nslookup, dig, or whois queries for MX, TXT, SOA, and NS records in a lab
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.reconnaissance
+  - attack.t1590
+  - attack.t1596
   - sentinel
   - reconnaissance

@@ -4,7 +4,7 @@ status: experimental
 description: Detects creation of Azure AD or Entra ID application registrations that may support malicious resource development or persistence.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -22,6 +22,7 @@ tactics:
   - Persistence
 techniques:
   - T1583.006
+  - T1098
 kill_chain_phases:
   - Resource Development
 data_sources:
@@ -29,10 +30,12 @@ data_sources:
 falsepositives:
   - Approved application onboarding
   - Legitimate cloud engineering or identity administration
+  - Normal dev/test tenant setup activity
 triage:
   - Review the application name, owner, credentials, and permissions
   - Determine whether the initiator normally registers applications
-  - Inspect follow-on service principal or consent activity
+  - Inspect follow-on service principal, secret, or consent activity
+  - Check whether the app appears newly operationalized or overprivileged
 validation:
   - Register a lab application and confirm the analytic triggers
 lifecycle: experimental
@@ -40,5 +43,8 @@ owner: Detection Engineering
 tags:
   - attack.resource-development
   - attack.persistence
+  - attack.t1583.006
+  - attack.t1098
+  - azure-ad
+  - app-registration
   - sentinel
-  - resource-development

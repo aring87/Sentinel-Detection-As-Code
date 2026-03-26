@@ -4,7 +4,7 @@ status: experimental
 description: Detects suspicious service creation or configuration changes that set a service image path to uncommon or user-writable locations.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,10 +12,10 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("sc.exe","powershell.exe")
+  | where FileName in~ ("sc.exe","powershell.exe","pwsh.exe")
   | where ProcessCommandLine has_any ("create","config","New-Service","Set-Service")
-  | where ProcessCommandLine has_any ("AppData","Temp","ProgramData")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+  | where ProcessCommandLine has_any ("AppData","Temp","ProgramData","Users\\Public")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 75
 tactics:
@@ -30,10 +30,12 @@ data_sources:
 falsepositives:
   - Approved service testing or troubleshooting
   - Internal application deployment to nonstandard paths
+  - Rare packaging or development workflows
 triage:
   - Inspect the target service and binary path
-  - Determine whether the path is user-writable or unsigned
+  - Determine whether the path is user-writable, unsigned, or newly created
   - Check for recent file drops and service start activity
+  - Validate whether the service account, name, and image path make sense for the host
 validation:
   - Create or reconfigure a lab service to point to a nonstandard path
 lifecycle: experimental
@@ -41,5 +43,7 @@ owner: Detection Engineering
 tags:
   - attack.persistence
   - attack.privilege-escalation
+  - attack.t1543.003
+  - service
   - sentinel
   - persistence

@@ -1,10 +1,10 @@
 title: Suspicious Token Manipulation or SeDebug Use
 id: SENT-PRIVESC-0002
 status: experimental
-description: Detects tools or command lines commonly associated with token theft or elevation attempts on endpoints.
+description: Detects tools or command-line artifacts commonly associated with token theft, impersonation, or elevation attempts on endpoints.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,8 +12,16 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where ProcessCommandLine has_any ("SeDebugPrivilege","DuplicateToken","CreateProcessWithTokenW","Incognito","getsystem")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName
+  | where ProcessCommandLine has_any (
+      "SeDebugPrivilege",
+      "DuplicateToken",
+      "CreateProcessWithTokenW",
+      "ImpersonateLoggedOnUser",
+      "Incognito",
+      "getsystem",
+      "SeAssignPrimaryTokenPrivilege"
+    )
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 78
 tactics:
@@ -26,17 +34,21 @@ kill_chain_phases:
 data_sources:
   - DeviceProcessEvents
 falsepositives:
-  - Approved red team or lab activity
+  - Approved red-team or lab activity
   - Security tool strings in research environments
+  - Internal training or controlled exploit development environments
 triage:
-  - Identify the tool and process ancestry
-  - Review integrity level changes or token operations
-  - Check for LSASS access or service abuse nearby
+  - Identify the tool or script containing the token-manipulation indicators
+  - Review process ancestry, signer, path, and whether the host is a security-testing asset
+  - Check for LSASS access, SeDebug abuse, service creation, or UAC bypass nearby
+  - Determine whether elevated child processes or integrity-level changes followed
 validation:
-  - Replay representative telemetry or lab-generated test events
+  - Replay representative telemetry or generate controlled token-manipulation tool activity in a lab
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.privilege-escalation
+  - attack.t1134
+  - attack.t1068
   - sentinel
   - privilege-escalation

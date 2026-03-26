@@ -1,31 +1,40 @@
 title: Suspicious Entra ID Control-Plane Changes by Nonstandard Actor
-id: 1e0f3f74-f607-4ad4-b31c-cs-2026-0005
+id: SENT-PERS-0008
 status: production
 description: Detects risky Entra ID and hybrid identity control-plane changes, including conditional access modifications, authentication method changes, and app credential updates by unusual actors.
-author: OpenAI
+author: Adam Ring
 date: 2026-03-25
-tags:
-  - attack.persistence
-  - attack.privilege_escalation
-  - attack.defense_evasion
-  - attack.t1098
-  - attack.t1556
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
 logsource:
   product: azure
   service: auditlogs
-detection:
-  query: |
-    AuditLogs
-    | where OperationName has_any ("Update conditional access policy","Add authentication method","Register security info","Add service principal credentials","Update application","Add owner to application","Add app role assignment","Add federated identity credential")
-       or ActivityDisplayName has_any ("Update conditional access policy","Add authentication method","Register security info","Add service principal credentials","Update application","Add federated identity credential")
-    | extend Actor=coalesce(tostring(InitiatedBy.user.userPrincipalName),tostring(InitiatedBy.app.displayName))
-    | extend Target=tostring(TargetResources[0].displayName)
-    | project TimeGenerated,OperationName,ActivityDisplayName,Actor,Target,Result,ResultReason,Category,LoggedByService,AdditionalDetails
-  condition: query
-falsepositives:
-  - Legitimate IAM administration
-  - Planned conditional access changes
-level: high
+query: |
+  AuditLogs
+  | where OperationName has_any (
+      "Update conditional access policy",
+      "Add authentication method",
+      "Register security info",
+      "Add service principal credentials",
+      "Update application",
+      "Add owner to application",
+      "Add app role assignment",
+      "Add federated identity credential"
+    )
+    or ActivityDisplayName has_any (
+      "Update conditional access policy",
+      "Add authentication method",
+      "Register security info",
+      "Add service principal credentials",
+      "Update application",
+      "Add federated identity credential"
+    )
+  | extend Actor = coalesce(tostring(InitiatedBy.user.userPrincipalName), tostring(InitiatedBy.app.displayName))
+  | extend Target = tostring(TargetResources[0].displayName)
+  | project TimeGenerated, OperationName, ActivityDisplayName, Actor, Target, Result, ResultReason, Category, LoggedByService, AdditionalDetails
+severity: high
+risk_score: 90
 tactics:
   - Persistence
   - Privilege Escalation
@@ -33,4 +42,28 @@ tactics:
 techniques:
   - T1098
   - T1556
+kill_chain_phases:
+  - Persistence
+data_sources:
+  - AuditLogs
+falsepositives:
+  - Legitimate IAM administration
+  - Planned conditional access or application changes
+  - Approved identity onboarding or certificate rotation
+triage:
+  - Review the exact Entra object changed and whether the actor normally performs this action
+  - Determine whether the change weakened security controls, added credentials, or created persistence
+  - Correlate with risky sign-ins, mailbox changes, OAuth consent, or device registration
+  - Validate CAB or change-ticket context for the operation
+validation:
+  - Test benign conditional access, MFA, and application credential changes in a lab tenant
 lifecycle: production
+owner: Detection Engineering
+tags:
+  - attack.persistence
+  - attack.privilege-escalation
+  - attack.defense-evasion
+  - attack.t1098
+  - attack.t1556
+  - entra
+  - sentinel

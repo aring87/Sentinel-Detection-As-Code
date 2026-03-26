@@ -1,22 +1,22 @@
 title: CleanUpLoader Scheduled Task Rundll32 DLLRegisterServer
 id: SENT-PERS-0004
-status: stable
-description: Detects scheduled task creation that launches rundll32.exe with DLLRegisterServer against DLLs in suspicious user AppData\Roaming paths, aligned to Red Canary reporting on CleanUpLoader persistence.
+status: testing
+description: Detects scheduled task creation that launches rundll32.exe with DLLRegisterServer against DLLs in suspicious AppData\\Roaming paths, a pattern associated with CleanUpLoader-style persistence.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
-logsource:
-  product: windows
-  service: process_creation
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: windows
+  category: process_creation
 query: |
   DeviceProcessEvents
   | where FileName =~ "schtasks.exe"
   | where ProcessCommandLine has "/Create"
   | where ProcessCommandLine has_all ("rundll32","DllRegisterServer")
   | where ProcessCommandLine has "\\AppData\\Roaming\\"
-  | project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, ProcessCommandLine, InitiatingProcessFileName
+  | project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 88
 tactics:
@@ -31,14 +31,15 @@ kill_chain_phases:
 data_sources:
   - DeviceProcessEvents
 falsepositives:
-  - Rare legitimate software registration activity using rundll32 from user paths
+  - Rare legitimate software registration activity using rundll32 from user-profile paths
+  - Edge-case installer or updater activity in roaming profile folders
 triage:
-  - Review the scheduled task name and full rundll32 command
-  - Check whether the referenced DLL lives in a random or recently created AppData\Roaming folder
-  - Determine whether the scheduled task name matches common CleanUpLoader patterns such as WindowsCodecs or Security Updater
-  - Correlate with suspicious downloads masquerading as PuTTY, WinSCP, or Teams utilities
+  - Review the scheduled task name, trigger, and full rundll32 command
+  - Check whether the referenced DLL lives in a random or recently created AppData\\Roaming folder
+  - Determine whether the task name resembles known masquerading patterns such as WindowsCodecs or Security Updater
+  - Correlate with suspicious downloads masquerading as PuTTY, WinSCP, or Teams-related utilities
 validation:
-  - Test in a lab with a benign scheduled task that invokes rundll32 and DllRegisterServer from a user path
+  - Create a benign scheduled task invoking rundll32 and DllRegisterServer from a lab user path
 lifecycle: testing
 owner: Detection Engineering
 tags:

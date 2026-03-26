@@ -1,10 +1,10 @@
 title: User Click Spike to Suspicious Domain
 id: SENT-RESDEV-0003
 status: experimental
-description: Flags repeated user clicks to the same destination domain, which may indicate attacker-controlled infrastructure used for phishing.
+description: Flags repeated user clicks to the same destination domain, which may indicate attacker-controlled infrastructure used for phishing or campaign staging.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -13,7 +13,7 @@ logsource:
 query: |
   UrlClickEvents
   | where ActionType =~ "ClickAllowed"
-  | extend Domain=extract(@"https?://([^/]+)", 1, Url)
+  | extend Domain = extract(@"https?://([^/]+)", 1, Url)
   | summarize Clicks=count(), Users=dcount(AccountUpn) by Domain, bin(Timestamp, 1d)
   | where Clicks >= 5 and Users >= 3
 severity: medium
@@ -23,17 +23,21 @@ tactics:
   - Initial Access
 techniques:
   - T1583.001
+  - T1566.002
 kill_chain_phases:
   - Resource Development
+  - Delivery
 data_sources:
   - UrlClickEvents
 falsepositives:
   - Marketing or internal campaign links
   - Legitimate external services accessed by many users
+  - Popular SaaS domains newly introduced to the environment
 triage:
-  - Review the domain and related email campaign data
-  - Determine whether the domain is newly observed or suspicious
-  - Check for credential harvesting follow-on activity
+  - Review the domain, sender context, and related message campaign data
+  - Determine whether the domain is newly observed, newly registered, or otherwise suspicious
+  - Check for credential harvesting, OAuth lure clicks, or device-code sign-ins afterward
+  - Validate whether the same domain appears in user reports or security tooling
 validation:
   - Validate URL parsing and threshold behavior with benign click data
 lifecycle: experimental
@@ -41,5 +45,8 @@ owner: Detection Engineering
 tags:
   - attack.resource-development
   - attack.initial-access
+  - attack.t1583.001
+  - attack.t1566.002
+  - url-clicks
+  - suspicious-domain
   - sentinel
-  - resource-development

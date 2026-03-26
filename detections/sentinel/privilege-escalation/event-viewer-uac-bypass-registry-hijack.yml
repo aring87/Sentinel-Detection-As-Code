@@ -4,7 +4,7 @@ status: experimental
 description: Detects registry hijack patterns associated with the Event Viewer UAC bypass technique.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -14,7 +14,7 @@ query: |
   DeviceRegistryEvents
   | where RegistryKey has @"\Software\Classes\mscfile\shell\open\command"
   | where ActionType in~ ("RegistryValueSet","RegistryKeyCreated")
-  | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, RegistryKey, RegistryValueData
+  | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, RegistryKey, RegistryValueName, RegistryValueData, ReportId
 severity: high
 risk_score: 80
 tactics:
@@ -30,9 +30,10 @@ falsepositives:
   - Rare troubleshooting or software repair actions
   - Authorized UAC research in a lab
 triage:
-  - Review the command registered under the hijacked key
-  - Determine whether the write was user initiated or scripted
-  - Check for subsequent mmc.exe or eventvwr.exe launches
+  - Review the value written under the hijacked key and whether it points to cmd, PowerShell, mshta, or another interpreter
+  - Determine whether the write was user initiated, scripted, or dropped by another process
+  - Check for subsequent eventvwr.exe, mmc.exe, or elevated child-process launches
+  - Correlate with other UAC bypass or registry-hijack activity on the same host
 validation:
   - Write the registry key in a lab and confirm telemetry coverage
 lifecycle: experimental
@@ -40,5 +41,6 @@ owner: Detection Engineering
 tags:
   - attack.privilege-escalation
   - attack.defense-evasion
+  - attack.t1548.002
   - sentinel
   - privilege-escalation

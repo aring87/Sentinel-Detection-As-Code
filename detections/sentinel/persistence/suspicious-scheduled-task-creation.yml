@@ -4,7 +4,7 @@ status: experimental
 description: Detects scheduled task creation via schtasks or Task Scheduler PowerShell that may establish persistence.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,9 +12,9 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("schtasks.exe","powershell.exe")
+  | where FileName in~ ("schtasks.exe","powershell.exe","pwsh.exe")
   | where ProcessCommandLine has_any ("/create","Register-ScheduledTask","New-ScheduledTask")
-  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
 severity: high
 risk_score: 72
 tactics:
@@ -28,16 +28,19 @@ data_sources:
 falsepositives:
   - Legitimate enterprise task deployment
   - Admin automation and maintenance jobs
+  - Software installation or updater tasks
 triage:
-  - Review the task name, trigger, and action
-  - Determine whether the creator is expected to manage tasks
-  - Look for follow-on persistence or lateral movement activity
+  - Review the task name, trigger, action, and creator
+  - Determine whether the creator is expected to manage tasks on this host
+  - Look for follow-on persistence, lateral movement, or suspicious payload execution
+  - Check whether the task launches scripts, LOLBins, or binaries from writable paths
 validation:
-  - Create a benign scheduled task via schtasks and PowerShell
+  - Create a benign scheduled task via schtasks and PowerShell in a lab
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.persistence
   - attack.t1053.005
+  - scheduled-task
   - sentinel
   - persistence

@@ -1,29 +1,57 @@
-title: DLL Injection Behavior
-id: dodea-sig-010-dll-injection-behavior
+title: Potential DLL Injection Tooling or Command Artifacts
+id: SENT-PRIVESC-0004
 status: experimental
-description: Detects suspicious API calls indicative of DLL injection
+description: Detects command-line artifacts and tool names commonly associated with DLL injection, remote thread creation, or process-memory manipulation.
 author: Adam Ring
-date: 2025-07-31
-tags:
-  - attack.privilege_escalation
-  - attack.t1055.001
-  - ckc.exploitation
+date: 2026-03-26
+modified: 2026-03-26
+platform: microsoft_sentinel
+query_language: kql
 logsource:
   product: windows
   category: process_creation
-detection:
-  selection:
-    query: >-
-      DeviceProcessEvents | where ProcessCommandLine has_any ("VirtualAllocEx",
-      "WriteProcessMemory", "CreateRemoteThread")
-
-      | project TimeGenerated, DeviceName, FileName, ProcessCommandLine
-  condition: selection
-falsepositives:
-  - None known
-level: high
+query: |
+  DeviceProcessEvents
+  | where ProcessCommandLine has_any (
+      "VirtualAllocEx",
+      "WriteProcessMemory",
+      "CreateRemoteThread",
+      "QueueUserAPC",
+      "NtMapViewOfSection",
+      "SetThreadContext",
+      "ResumeThread",
+      "reflective loader",
+      "manualmap"
+    )
+    or FileName in~ ("mimikatz.exe","inject.exe","rundll32.exe")
+  | project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId
+severity: high
+risk_score: 72
 tactics:
-  - privilege_escalation
+  - Privilege Escalation
+  - Defense Evasion
 techniques:
-  - t1055.001
+  - T1055.001
+kill_chain_phases:
+  - Privilege Escalation
+data_sources:
+  - DeviceProcessEvents
+falsepositives:
+  - Approved red-team or malware-analysis tooling
+  - Security research in controlled lab environments
+  - Developer test harnesses that reference injection APIs in arguments
+triage:
+  - Determine whether the process is a known security tool, injector, or packer
+  - Review parent process, execution path, and whether the binary is signed or approved
+  - Correlate with LSASS access, token abuse, service abuse, or suspicious child processes
+  - Check for nearby file drops, persistence changes, or outbound network activity
+validation:
+  - Execute a benign injection-lab tool or replay representative telemetry in a controlled environment
 lifecycle: experimental
+owner: Detection Engineering
+tags:
+  - attack.privilege-escalation
+  - attack.defense-evasion
+  - attack.t1055.001
+  - sentinel
+  - privilege-escalation

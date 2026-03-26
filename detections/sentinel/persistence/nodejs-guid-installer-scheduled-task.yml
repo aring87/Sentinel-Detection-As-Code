@@ -1,28 +1,30 @@
 title: Node.js Installer or GUID-Named App Followed by Scheduled Task Persistence
 id: SENT-PERS-0006
 status: experimental
-description: Detects suspicious installer or Node.js/Electron-style application execution followed by scheduled task persistence, intended to help surface freeware-masquerading threats such as JustAskJacky-style behavior.
+description: Detects suspicious installer or Node.js/Electron-style application execution followed by scheduled task persistence, intended to surface freeware-masquerading or SEO-poisoned software behavior.
 author: Adam Ring
 date: 2026-03-20
-modified: 2026-03-20
-logsource:
-  product: windows
-  service: process_creation
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
+logsource:
+  product: windows
+  category: process_creation
 query: |
-  let suspiciousInstall = DeviceProcessEvents
-  | where FileName in~ ("node.exe","msiexec.exe","setup.exe","install.exe")
-     or ProcessCommandLine matches regex @"\{[0-9a-fA-F-]{36}\}"
-  | project DeviceId, DeviceName, InstallTime=Timestamp, InstallCmd=ProcessCommandLine, InitiatingProcessAccountName;
-  let persistence = DeviceProcessEvents
-  | where FileName in~ ("schtasks.exe","powershell.exe")
-  | where ProcessCommandLine has_any ("/Create","Register-ScheduledTask","New-ScheduledTask")
-  | project DeviceId, PersistTime=Timestamp, PersistCmd=ProcessCommandLine;
+  let suspiciousInstall =
+    DeviceProcessEvents
+    | where FileName in~ ("node.exe","msiexec.exe","setup.exe","install.exe")
+       or ProcessCommandLine matches regex @"\{[0-9a-fA-F-]{36}\}"
+    | project DeviceId, DeviceName, InstallTime=Timestamp, InstallCmd=ProcessCommandLine, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine;
+  let persistence =
+    DeviceProcessEvents
+    | where FileName in~ ("schtasks.exe","powershell.exe")
+    | where ProcessCommandLine has_any ("/Create","Register-ScheduledTask","New-ScheduledTask")
+    | project DeviceId, PersistTime=Timestamp, PersistCmd=ProcessCommandLine, PersistProc=FileName;
   suspiciousInstall
   | join kind=inner persistence on DeviceId
   | where PersistTime between (InstallTime .. InstallTime + 60m)
-  | project DeviceName, InitiatingProcessAccountName, InstallTime, InstallCmd, PersistTime, PersistCmd
+  | project DeviceName, InitiatingProcessAccountName, InstallTime, InstallCmd, InitiatingProcessFileName, InitiatingProcessCommandLine, PersistTime, PersistProc, PersistCmd
 severity: medium
 risk_score: 70
 tactics:
@@ -39,9 +41,10 @@ data_sources:
 falsepositives:
   - Legitimate installers that register scheduled tasks
   - Approved Electron or Node.js application setups
+  - Enterprise software deployment
 triage:
   - Validate the software package name, signer, source URL, and installation path
-  - Determine whether the application is approved or masquerading as freeware/utility software
+  - Determine whether the app is approved or masquerading as freeware or utility software
   - Review the created scheduled task, payload path, and execution frequency
   - Check whether the software was downloaded from suspicious SEO-poisoned or typosquatted sites
 validation:
@@ -53,7 +56,7 @@ tags:
   - attack.execution
   - attack.t1053.005
   - attack.t1204
-  - justaskjacky
   - installer
   - nodejs
+  - scheduled-task
   - sentinel

@@ -1,10 +1,10 @@
 title: Whoami and Net Enumeration Burst
 id: SENT-RECON-0002
 status: experimental
-description: Detects bursts of account and domain enumeration commands often used during host or domain reconnaissance.
+description: Detects bursts of account, trust, and environment-enumeration commands that may indicate host or domain reconnaissance.
 author: Adam Ring
 date: 2026-03-06
-modified: 2026-03-06
+modified: 2026-03-26
 platform: microsoft_sentinel
 query_language: kql
 logsource:
@@ -12,11 +12,11 @@ logsource:
   category: process_creation
 query: |
   DeviceProcessEvents
-  | where FileName in~ ("whoami.exe","net.exe","nltest.exe","dsquery.exe")
-  | summarize CommandCount=count(), Commands=make_set(ProcessCommandLine, 10) by DeviceName, AccountName, bin(Timestamp, 10m)
+  | where FileName in~ ("whoami.exe","net.exe","net1.exe","nltest.exe","dsquery.exe")
+  | summarize CommandCount=count(), Commands=make_set(ProcessCommandLine, 12), Procs=make_set(FileName, 10) by DeviceName, AccountName, bin(Timestamp, 10m)
   | where CommandCount >= 5
 severity: medium
-risk_score: 50
+risk_score: 52
 tactics:
   - Reconnaissance
   - Discovery
@@ -31,17 +31,21 @@ data_sources:
 falsepositives:
   - Administrator troubleshooting or domain support activity
   - Automated inventory or audit scripts
+  - Helpdesk account and trust verification workflows
 triage:
-  - Review the exact commands executed in the burst
+  - Review the exact commands executed in the burst and whether they targeted local, domain, or trust information
   - Determine whether the account is expected to perform domain reconnaissance
-  - Look for subsequent lateral movement or credential access activity
+  - Check for subsequent credential access, remote execution, or lateral movement activity
 validation:
-  - Run multiple whoami, net, and nltest commands within 10 minutes
+  - Run multiple whoami, net, nltest, and dsquery commands within ten minutes in a lab
   - Compare against known benign administrator activity
 lifecycle: experimental
 owner: Detection Engineering
 tags:
   - attack.reconnaissance
   - attack.discovery
+  - attack.t1087
+  - attack.t1016
+  - attack.t1482
   - sentinel
   - reconnaissance
