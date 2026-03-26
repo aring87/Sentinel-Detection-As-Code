@@ -1,0 +1,287 @@
+# Suspicious Clipboard Read or Clipboard Utility Execution Triage Guide
+
+## Rule Overview
+
+**Title:** Suspicious Clipboard Read or Clipboard Utility Execution  
+**Rule ID:** SENT-COLL-0001  
+**Severity:** Medium  
+**Risk Score:** 55  
+**Tactic:** Collection  
+**Technique:** T1115 - Clipboard Data  
+**Platform:** Microsoft Sentinel  
+**Data Source:** DeviceProcessEvents  
+**Lifecycle:** Experimental
+
+## Purpose
+
+This detection identifies suspicious clipboard read activity or clipboard utility execution that may indicate collection of copied data, secrets, credentials, or other sensitive user content.
+
+This matters because attackers may read clipboard contents to capture:
+
+- Passwords copied by users
+- MFA codes
+- Internal URLs or secrets
+- Sensitive text copied from documents, terminals, or chat tools
+- Data being staged for later exfiltration
+
+## Detection Logic Summary
+
+The rule looks for command-line clipboard access using processes such as:
+
+- `powershell.exe`
+- `pwsh.exe`
+- `cmd.exe`
+- `clip.exe`
+
+It specifically looks for clipboard read patterns such as:
+
+- `Get-Clipboard`
+- `[Windows.Forms.Clipboard]::GetText`
+- `GetText()`
+- `clip.exe`
+
+It excludes `Set-Clipboard` activity and suppresses some likely development-related initiators such as:
+
+- `Code.exe`
+- `devenv.exe`
+- `powershell_ise.exe`
+
+## Likely Analyst Goal
+
+Determine whether the clipboard access was:
+
+- Legitimate administrator or developer scripting
+- Normal automation or troubleshooting
+- Suspicious collection of copied secrets or user data
+
+## Initial Triage Questions
+
+1. Who executed the clipboard-read command?
+2. What process initiated the clipboard access?
+3. Is command-line clipboard access normal for this user or host?
+4. Did the clipboard access occur near archive creation, browser credential access, or outbound transfers?
+5. Was the process launched from a suspicious path or parent process?
+
+---
+
+## Investigation Steps
+
+### 1. Review the Process Details
+
+Inspect:
+
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `AccountName`
+
+Look for commands such as:
+
+- `Get-Clipboard`
+- `[Windows.Forms.Clipboard]::GetText`
+- `GetText()`
+
+**Why this matters:**  
+Command-line clipboard reads are less common than standard interactive use and may indicate scripted collection.
+
+---
+
+### 2. Identify the Initiating Process and Parent Context
+
+Review whether the clipboard access was launched by:
+
+- PowerShell
+- Command shell
+- A script runner
+- A management tool
+- A suspicious or rare parent process
+
+Pay attention to:
+
+- User-writable execution paths
+- Temp folders
+- Downloads
+- AppData
+- LOLBins or script hosts
+
+**Why this matters:**  
+Parent-child process context helps distinguish normal scripting from attacker tradecraft.
+
+---
+
+### 3. Determine Whether the Activity Is Expected
+
+Ask:
+
+- Does the user normally use PowerShell or command-line automation?
+- Is the device used by an admin, developer, or automation engineer?
+- Is there a help desk or approved script that reads clipboard content?
+- Is the activity explained by troubleshooting or productivity tooling?
+
+**Why this matters:**  
+Some clipboard access is benign, especially in technical workflows.
+
+---
+
+### 4. Review Surrounding Activity
+
+Look for nearby events involving:
+
+- Archive creation
+- Browser credential store access
+- Cloud upload activity
+- Email transfer
+- Script execution
+- Command-and-control traffic
+- Removable media usage
+
+**Why this matters:**  
+Clipboard collection becomes much more concerning when paired with staging or exfiltration behavior.
+
+---
+
+### 5. Check for Access to High-Risk Data Sources
+
+Review whether the same process or account also accessed:
+
+- Browser credential stores
+- Password vault exports
+- Sensitive documents
+- Email data
+- Admin consoles
+- Remote access tools
+
+**Why this matters:**  
+An attacker may gather clipboard data as part of a broader collection workflow.
+
+---
+
+### 6. Review the User and Host Context
+
+Assess:
+
+- Whether the host is privileged or high value
+- Whether the user recently reported suspicious activity
+- Whether there are other alerts on the same device
+- Whether the system is a jump box, admin workstation, or developer endpoint
+
+**Why this matters:**  
+Clipboard collection on an admin or high-value system carries more risk.
+
+---
+
+## Suggested Investigation Pivots
+
+### Process Pivots
+
+- Process hash
+- Full command line
+- Parent process
+- Signer status
+- File path
+- Prevalence in the environment
+
+### User Pivots
+
+- Same account on other devices
+- Recent PowerShell usage
+- Recent suspicious logons
+- Nearby collection or exfiltration alerts
+
+### Device Pivots
+
+- Other clipboard access events
+- Archive creation
+- Browser credential access
+- Network transfers
+- File staging behavior
+
+---
+
+## Benign Explanations
+
+Common legitimate scenarios include:
+
+1. Legitimate administrator or developer clipboard scripting
+2. Automation workflows that intentionally read clipboard contents
+3. User troubleshooting or local productivity scripts
+
+---
+
+## Suspicious Indicators
+
+Escalate concern when you observe:
+
+- Clipboard reads by uncommon or unsigned scripts
+- Execution from temp or user-writable paths
+- Clipboard access followed by archive creation or upload
+- Browser credential access nearby
+- Same user or host showing other collection activity
+- Suspicious parent process or process tree
+
+---
+
+## Triage Decision
+
+### Close as Benign / False Positive
+
+Close as benign when:
+
+- The user regularly uses scripting or automation
+- The initiating process is trusted and expected
+- No nearby suspicious collection or exfiltration is found
+
+### Escalate as Suspicious
+
+Escalate when:
+
+- Clipboard reads are unusual for the host or user
+- The initiating process is suspicious or rare
+- Clipboard access occurs near data staging or outbound transfer activity
+
+### Escalate as Likely Malicious
+
+Escalate as likely malicious when:
+
+- Clipboard reads are part of a broader compromise chain
+- The host shows additional collection or credential theft behavior
+- Evidence suggests harvesting of copied credentials or secrets
+
+---
+
+## Response Actions
+
+Depending on findings, consider:
+
+- Isolating the host if malicious collection is suspected
+- Reviewing the full process tree and script contents
+- Hunting for the same command line across the environment
+- Resetting credentials if copied secrets may have been exposed
+- Escalating to incident response if broader collection is confirmed
+
+---
+
+## Example Analyst Notes Template
+
+### Analyst Summary
+
+Alert fired for suspicious clipboard read or clipboard utility execution, potentially indicating collection of copied secrets, credentials, or other sensitive user data.
+
+### Key Findings
+
+- **Affected device:**  
+- **Affected user:**  
+- **Process:**  
+- **Command line:**  
+- **Initiating process:**  
+- **Expected activity:**  
+- **Nearby archive/upload behavior:**  
+- **Related alerts:**  
+- **Final assessment:**  
+
+### Recommended Disposition
+
+- Benign / False Positive
+- Suspicious - Needs Deeper Investigation
+- Confirmed Malicious
