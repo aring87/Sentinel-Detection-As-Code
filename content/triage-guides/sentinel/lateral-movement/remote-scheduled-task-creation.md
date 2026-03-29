@@ -1,94 +1,110 @@
 # Remote Scheduled Task Creation
 
 ## Goal
-Identify `schtasks.exe` usage that creates scheduled tasks on remote systems, which may indicate lateral movement or remote execution.
+Identify `schtasks`-based remote task creation that may indicate lateral movement or remote execution.
 
 ## Why This Alert Matters
-Scheduled tasks are a common technique for executing commands on remote Windows systems using valid credentials. Attackers may use remote task creation to run payloads, establish persistence on another host, or move laterally while blending in with administrative tooling.
+Remote scheduled task creation is a common lateral-movement technique because it allows an attacker to execute commands on another host using built-in Windows functionality. It is frequently used after credential theft or privileged access is obtained, and it can be combined with scripts, LOLBins, or payloads stored on writable paths. This guide is based on a rule that detects `schtasks.exe` commands using both `/create` and `/s`, indicating remote task creation against another system. :contentReference[oaicite:3]{index=3}
 
 ## What the Detection Is Looking For
-This detection looks for:
-- `schtasks.exe`
-- command-line indicators such as:
-  - `/create`
-  - `/s`
+This detection reviews `DeviceProcessEvents` for:
+- `FileName =~ "schtasks.exe"`
+
+and requires the command line to contain:
+- `/create`
+- `/s`
+
+The rule surfaces the process context, account, command line, parent process, and hash so the analyst can review which remote host and task action were involved. :contentReference[oaicite:4]{index=4}
 
 ## Likely ATT&CK Mapping
-- T1053.005 – Scheduled Task
-- T1021 – Remote Services
+- **T1053.005** – Scheduled Task/Job: Scheduled Task
+- **T1021** – Remote Services
 
 ## Initial Triage Questions
-1. What remote host was targeted?
-2. What task name and command were specified?
-3. Is remote task creation normal for the initiating account?
-4. Was there remote logon, service creation, or file copy activity nearby?
-5. Did the task run successfully on the target system?
+1. What remote target was specified with `/s`?
+2. What task name, trigger, and action were created?
+3. Is the initiating account expected to create remote tasks?
+4. Did the task action launch PowerShell, CMD, LOLBins, or a payload from a writable path?
+5. Was the activity part of software deployment or orchestration?
+6. Are there related remote logons, SMB access, or WMI/service creation events nearby?
+7. Is the source device an admin workstation, management host, or normal endpoint?
 
 ## Key Fields To Review
-- Timestamp
-- DeviceName
-- AccountName
-- ProcessCommandLine
-- InitiatingProcessFileName
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `SHA1`
+- `ReportId`
 
 ## Investigation Steps
-### 1. Validate the remote task creation
-- Confirm `schtasks.exe` execution.
-- Review the full command line for:
-  - target system
+
+### 1. Review the remote `schtasks` command
+- Extract the remote target from the `/s` parameter.
+- Identify:
   - task name
-  - scheduled action or binary
-  - run-as context
-  - trigger timing
-- Determine whether the command indicates immediate execution or delayed scheduling.
+  - task action
+  - run user
+  - trigger or schedule
+- Determine whether the task appears designed for one-time execution or persistence.
 
-### 2. Identify the remote target and payload
-- Extract the `/s` target host.
-- Determine what command or binary the task was configured to launch.
-- Assess whether the payload lives in:
-  - a trusted program path
-  - temp directories
-  - admin shares
-  - copied staging locations
+### 2. Inspect the task action
+- Review whether the created task launches:
+  - `powershell.exe`
+  - `cmd.exe`
+  - `mshta.exe`
+  - `rundll32.exe`
+  - an executable from `Temp`, `AppData`, `Users\Public`, or `ProgramData`
+- Suspicious actions increase the likelihood of malicious use.
 
-### 3. Review the initiating account
-- Determine whether the account normally performs orchestration or admin operations.
-- Check for remote logon events and admin share access from the same account.
-- Review whether the account is privileged or newly active.
+### 3. Assess the source host and user
+- Determine whether the source host is:
+  - a legitimate admin or deployment system
+  - a jump box
+  - a user workstation
+  - a newly suspicious endpoint
+- Confirm whether the user normally creates tasks remotely.
 
-### 4. Correlate with nearby lateral movement
-Search for:
-- remote service creation
-- WMI remote execution
-- SMB file copy
-- credential dumping or reuse
-- suspicious process launches on the target host
+### 4. Correlate with related remote activity
+Look for:
+- remote logons
+- SMB access
+- file copy to admin shares
+- WMI remote process execution
+- service creation
+- credential dumping or privileged logons before the event
 
-### 5. Assess impact on the target host
-- Determine whether the scheduled task executed.
-- Review child process activity on the destination endpoint.
-- Check for persistence or repeated task creation across multiple systems.
+### 5. Validate benign orchestration context
+- Confirm whether the event aligns with:
+  - software deployment
+  - patching
+  - enterprise job scheduling
+  - approved orchestration tooling
+- If not, escalate.
 
 ## Common Benign Explanations
-- Approved admin orchestration
-- Enterprise job scheduling
-- Configuration management
-- Helpdesk or deployment operations
+- Approved administration or orchestration platforms
+- Enterprise job scheduling across managed servers
+- Software deployment tooling using remote scheduled tasks :contentReference[oaicite:5]{index=5}
 
 ## Escalate When
 Escalate if:
-- the task command is suspicious or points to an untrusted binary
-- the account does not normally administer remote systems
-- multiple targets are involved
-- other lateral movement indicators exist
-- the target host launched malicious child processes
+- the source host is not expected to create remote tasks
+- the task action launches script interpreters, LOLBins, or suspicious binaries
+- the remote target is high value or unrelated to the user’s role
+- there are preceding credential-access or remote logon indicators
+- the sequence resembles attacker staging or one-time remote execution
 
 ## Suggested Response Actions
-- capture the full command line, task name, and target host
-- inspect scheduled task artifacts on the destination endpoint
-- review remote logons and share access for the same account
-- isolate affected hosts if propagation is suspected
-- notify IR for lateral movement investigation
+- Preserve the full command line and process tree
+- Identify the target host and inspect the created task directly
+- Review whether the task executed and what it launched
+- Search for the same account creating remote tasks on other systems
+- Contain the source or target host if malicious execution is confirmed
+- Correlate with authentication, SMB, and service-creation logs
 
 ## Analyst Notes
-This should be the canonical scheduled-task lateral movement guide. It is stronger than the older variants because it specifically keys on remote creation semantics and includes better triage context.
+This is a strong built-in lateral-movement analytic. It is especially important when a non-management host uses `schtasks /create /s` or when the task action points to suspicious paths or interpreters.

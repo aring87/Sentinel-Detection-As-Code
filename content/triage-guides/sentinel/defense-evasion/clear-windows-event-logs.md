@@ -1,88 +1,108 @@
-# Triage Guide: Clear Windows Event Logs
+# Clear Windows Event Logs
 
-## Detection Title
-Clear Windows Event Logs
+## Goal
+Identify commands used to clear Windows event logs in an effort to remove evidence and reduce visibility for defenders.
 
-## Detection ID
-SENT-DEFEV-0003
+## Why This Alert Matters
+Clearing Windows event logs is a classic defense-evasion technique. Attackers may do this after executing malware, creating persistence, dumping credentials, or moving laterally in order to reduce the available evidence for responders. Even when only a single log is cleared, the action is often high-value because it may indicate the attacker knows they are leaving detectable artifacts.
 
-## Objective
-
-This detection identifies commands used to clear Windows event logs, which may indicate an attempt to remove forensic evidence and reduce visibility into malicious activity.
-
-## Why It Matters
-
-Clearing event logs is a common defense-evasion technique used to:
-- erase evidence of execution
-- hide persistence or lateral movement activity
-- disrupt incident reconstruction
-- reduce the effectiveness of detection and response
-
-This behavior is especially concerning when it occurs after suspicious execution, privilege escalation, or credential access events.
-
-## Alert Logic Summary
-
-The rule looks for:
+## What the Detection Is Looking For
+This detection reviews `DeviceProcessEvents` for:
 - `wevtutil.exe`
 - `powershell.exe`
 - `cmd.exe`
 
-with command lines containing:
-- ` cl `
+It looks for command-line patterns such as:
+- `cl`
 - `Clear-EventLog`
 - `Remove-EventLog`
 
-## Initial Triage Questions
+The goal is to catch command execution that clears Windows event logs or removes records in a way consistent with anti-forensic activity.
 
-- Which logs were targeted for clearing?
-- Who executed the command?
-- Was the user an approved administrator?
-- Did the activity occur during an expected maintenance window?
-- Was there suspicious activity shortly before the clear command?
+## Likely ATT&CK Mapping
+- **T1070.001** – Indicator Removal on Host: Clear Windows Event Logs
+
+## Initial Triage Questions
+1. Which account cleared the logs?
+2. Which process was used to perform the action?
+3. Which logs were targeted?
+4. Did the command occur after suspicious execution, persistence, or credential access?
+5. Is the host an admin workstation, server, or normal user endpoint?
+6. Was the action part of approved maintenance or troubleshooting?
+7. Did the same user or host also disable other logging or security controls?
+
+## Key Fields To Review
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
 
 ## Investigation Steps
 
-1. Review the full process command line.
-2. Identify the executing account and privilege context.
-3. Determine which log or logs were targeted.
-4. Review the parent process and surrounding execution chain.
-5. Look for suspicious activity immediately before the log-clearing event:
-   - PowerShell
-   - LOLBins
-   - credential access
-   - persistence creation
-   - remote execution
-6. Confirm whether the action aligns with approved admin or lab activity.
+### 1. Identify the log-clearing method
+- Determine whether the command used:
+  - `wevtutil`
+  - PowerShell log-clearing cmdlets
+  - CMD invoking a log-clearing command
+- Extract the exact command line and confirm what was targeted.
 
-## Common False Positives
+### 2. Determine which logs were affected
+- Review whether the action targeted:
+  - Security logs
+  - System logs
+  - Application logs
+  - PowerShell logs
+  - custom or operational logs
+- Prioritize clearing of Security and PowerShell-related logs.
 
-- rare administrative log maintenance
-- lab validation or training exercises
-- incident-response cleanup in controlled environments
+### 3. Review preceding activity
+Look for suspicious actions immediately before the log clear, such as:
+- PowerShell encoded commands
+- Defender or logging disablement
+- credential dumping
+- scheduled task creation
+- service creation
+- remote access activity
+- archive creation or staging
 
-## Escalation Guidance
+### 4. Validate the actor and context
+- Confirm whether the account is an approved administrator.
+- Check whether the activity happened during:
+  - troubleshooting
+  - forensic cleanup
+  - lab work
+  - approved maintenance
+- If not, treat it as high priority.
 
-Escalate when:
-- the command is not part of approved administration
-- the activity follows suspicious execution or credential access
-- the actor is not recognized as an authorized admin
-- multiple logs are cleared in quick succession
-- the host is high-value or otherwise sensitive
+### 5. Assess follow-on impact
+- Determine whether the host continued to show suspicious behavior after logs were cleared.
+- Check for:
+  - persistence
+  - exfiltration
+  - malware staging
+  - lateral movement
 
-## Recommended Enrichment
+## Common Benign Explanations
+- Rare administrator log maintenance
+- Lab validation
+- Forensic cleanup during controlled testing
+- Troubleshooting on nonproduction systems
 
-- full command line
-- parent and child processes
-- user privilege level
-- recent alerts on the same host
-- remote access activity on the device
-- timeline of suspicious activity before the log clear
+## Escalate When
+Escalate if:
+- Security or PowerShell logs were cleared
+- the actor is not an approved administrator
+- the command follows suspicious execution or persistence activity
+- the same host also shows security-control tampering
+- the clearing appears selective or timed around other malicious events
 
-## ATT&CK Mapping
+## Suggested Response Actions
+- Preserve remaining logs and surrounding telemetry immediately
+- Review neighboring process, registry, authentication, and file events
+- Isolate the host if broader malicious activity is confirmed
+- Search for the same account or command pattern across the environment
+- Review whether other logging or security controls were modified
 
-- Defense Evasion
-- T1070.001 – Indicator Removal on Host: Clear Windows Event Logs
-
-## Related Rule
-
-- `detections/sentinel/defense-evasion/clear-windows-event-logs.yml`
+## Analyst Notes
+This is a high-value anti-forensics alert. Even when it has a benign explanation, event log clearing should be reviewed carefully because it is strongly associated with attacker cleanup and post-compromise concealment.

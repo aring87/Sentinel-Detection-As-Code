@@ -1,97 +1,123 @@
-# Triage Guide: Security Tool Disable Attempt
+# Security Tool Disable Attempt
 
-## Detection Title
-Security Tool Disable Attempt
+## Goal
+Identify attempts to stop security services or alter Windows Defender settings and exclusions in order to reduce host protections.
 
-## Detection ID
-SENT-DEFEV-0002
+## Why This Alert Matters
+Attackers frequently try to impair or disable endpoint security controls before executing payloads, dumping credentials, or establishing persistence. Changes to Defender settings, exclusions, or core security service states can significantly reduce detection coverage and enable follow-on malicious activity.
 
-## Objective
+This detection focuses on process creation involving common tooling used to alter security settings or stop security services. :contentReference[oaicite:7]{index=7}
 
-This detection identifies attempts to stop security services or modify Microsoft Defender settings, exclusions, or service states through command-line activity.
-
-## Why It Matters
-
-Disabling security tooling is a common preparatory step before:
-- malware deployment
-- credential theft
-- payload staging
-- ransomware activity
-- persistence installation
-
-These behaviors often appear shortly before additional malicious actions.
-
-## Alert Logic Summary
-
-The rule looks for:
+## What the Detection Is Looking For
+This detection reviews `DeviceProcessEvents` for commands involving:
 - `powershell.exe`
 - `cmd.exe`
 - `sc.exe`
 - `net.exe`
 - `reg.exe`
 
-with command lines containing:
+It looks for command-line patterns such as:
 - `Set-MpPreference`
 - `DisableRealtimeMonitoring`
 - `Add-MpPreference`
-- ` stop `
-- ` config `
-- ` WinDefend `
-- ` Sense `
+- `stop`
+- `config`
+- `WinDefend`
+- `Sense`
+
+The goal is to surface attempts to stop services or modify Windows Defender behavior and exclusions. :contentReference[oaicite:8]{index=8}
+
+## Likely ATT&CK Mapping
+- **T1562.001** – Impair Defenses: Disable or Modify Tools
 
 ## Initial Triage Questions
+1. Which security control was targeted?
+2. Was the activity aimed at Defender settings, exclusions, or service state?
+3. Which process and account executed the command?
+4. Was the activity part of approved maintenance or troubleshooting?
+5. Did the change affect real-time monitoring, behavior monitoring, or service availability?
+6. Was malicious execution, staging, or persistence observed nearby?
+7. Did the same actor also change logging or recovery settings?
 
-- Which security service or setting was targeted?
-- Was the action part of approved Defender maintenance?
-- Which user and process initiated the command?
-- Did the host show malware execution or staging afterward?
-- Is the host normally managed by security tooling changes?
+## Key Fields To Review
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
 
 ## Investigation Steps
 
-1. Review the full command line and targeted setting/service.
-2. Identify the user, parent process, and execution source.
-3. Determine whether the activity aligns with approved maintenance.
-4. Review immediate follow-on behavior:
-   - downloads
-   - script execution
-   - file writes
-   - persistence creation
-   - outbound traffic
-5. Check whether Defender exclusions or configuration changes were added.
-6. Determine whether the same host has other defense-evasion indicators.
+### 1. Identify the targeted control
+- Review whether the command targeted:
+  - Windows Defender preferences
+  - service stop actions
+  - service reconfiguration
+  - exclusion additions
+  - sensor or security platform processes
+- Determine whether the target was:
+  - `WinDefend`
+  - `Sense`
+  - another core security component
 
-## Common False Positives
+### 2. Review the initiating process and user
+- Check whether the command was launched by:
+  - PowerShell
+  - CMD
+  - `sc.exe`
+  - `net.exe`
+  - `reg.exe`
+- Validate whether the user is an approved security or systems administrator.
 
-- planned security maintenance
-- approved Defender policy changes
-- lab testing
-- troubleshooting by security administrators
+### 3. Determine what changed
+- Look for:
+  - monitoring disabled
+  - exclusions added
+  - service stop attempts
+  - startup type changes
+  - sensor or EDR disablement
+- Assess whether the change succeeded if you have follow-on telemetry.
 
-## Escalation Guidance
+### 4. Correlate with nearby malicious behavior
+Look for:
+- malware execution
+- suspicious downloads
+- encoded PowerShell
+- persistence creation
+- credential dumping
+- event log clearing
+- PowerShell logging disablement
 
-Escalate when:
-- the change is not tied to approved maintenance
-- there is immediate follow-on malware-like behavior
-- the actor is not an authorized security administrator
-- multiple security-related services are targeted
-- the activity occurs on a critical system or admin workstation
+### 5. Validate benign context
+- Confirm whether the event aligns with:
+  - maintenance windows
+  - approved Defender policy changes
+  - lab testing
+  - troubleshooting by security staff
+- If not, escalate quickly.
 
-## Recommended Enrichment
+## Common Benign Explanations
+- Planned security maintenance
+- Approved Defender policy changes by security administrators
+- Lab validation or controlled testing
 
-- full command line
-- targeted service/setting details
-- initiating process and parent process
-- maintenance window context
-- recent downloads or staging events
-- related alerts on the device
-- host sensitivity and user role
+These align directly with the rule’s false-positive guidance. :contentReference[oaicite:9]{index=9}
 
-## ATT&CK Mapping
+## Escalate When
+Escalate if:
+- monitoring or security services were disabled unexpectedly
+- exclusions were added for suspicious paths or file types
+- the actor is not authorized to modify endpoint protections
+- the host shows malware, persistence, or credential-access behavior nearby
+- the same user also cleared logs or disabled PowerShell logging
 
-- Defense Evasion
-- T1562.001 – Impair Defenses
+## Suggested Response Actions
+- Preserve process and configuration-change evidence
+- Verify whether the attempted change succeeded
+- Re-enable protections if the modification is unauthorized
+- Review the host for malicious payloads or persistence
+- Search for the same command patterns elsewhere in the environment
+- Contain the host if active compromise is confirmed
 
-## Related Rule
-
-- `detections/sentinel/defense-evasion/security-tool-disable-attempt.yml`
+## Analyst Notes
+This is a high-value defense-evasion analytic because security-tool tampering often happens early in an intrusion or immediately before more damaging actions. It is especially important when paired with suspicious downloads, encoded PowerShell, credential access, or recovery tampering.

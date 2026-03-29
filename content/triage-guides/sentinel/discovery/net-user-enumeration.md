@@ -1,88 +1,102 @@
-# Triage Guide: Net User Enumeration
+# Net User Enumeration
 
-## Detection Title
-Net User Enumeration
+## Goal
+Identify use of `net.exe` or `net1.exe` to enumerate user accounts locally or in the domain.
 
-## Objective
+## Why This Alert Matters
+`net user` is a common built-in command, but it is also a classic attacker reconnaissance technique for learning valid account names and understanding the environment before credential attacks or lateral movement. While benign use is common in support and administration, unexpected use on ordinary endpoints can be a useful signal. This guide is based on a rule that looks for `net.exe` or `net1.exe` with `user` in the command line. :contentReference[oaicite:9]{index=9}
 
-This detection identifies use of `net user` and related commands to enumerate local or domain user accounts.
+## What the Detection Is Looking For
+This detection reviews `DeviceProcessEvents` for:
+- `net.exe`
+- `net1.exe`
 
-## Why It Matters
+It looks for command lines containing `user`, which may indicate:
+- local account listing
+- domain account listing
+- user-specific account lookup :contentReference[oaicite:10]{index=10}
 
-Account enumeration is a common discovery step used to:
-- identify valid usernames
-- identify privileged or service accounts
-- prepare for password spraying
-- prepare for lateral movement
-- validate targeting opportunities
-
-This command is legitimate in administration, but it is also frequently used by attackers after initial access.
-
-## Alert Logic Summary
-
-The rule is intended to identify use of:
-- `net user`
-- `net user /domain`
-- related account-discovery commands
+## Likely ATT&CK Mapping
+- **T1087.001** – Account Discovery: Local Account
 
 ## Initial Triage Questions
+1. Was the command enumerating local users or domain users?
+2. Is the user or host expected to run `net user`?
+3. Did the activity occur as part of helpdesk or admin troubleshooting?
+4. Were other discovery commands executed nearby?
+5. Was the system a user workstation or admin system?
+6. Was the activity followed by failed logons or credential access?
+7. Is the command part of a broader reconnaissance pattern?
 
-- Who ran `net user`?
-- Was it run on a workstation, server, or admin host?
-- Was the command local-only or domain-focused?
-- Does the user normally perform account administration?
-- Were there additional discovery commands nearby?
+## Key Fields To Review
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `ReportId`
 
 ## Investigation Steps
 
-1. Review the full command line.
-2. Identify whether the query targeted:
-   - local users
-   - domain users
-3. Determine the user and host context.
-4. Review neighboring process activity for:
-   - `net group`
-   - `whoami`
-   - `nltest`
-   - `dsquery`
-   - PowerShell AD queries
-5. Check whether the same account or host later attempted:
-   - failed logons
-   - remote execution
-   - privilege escalation
-6. Determine whether the activity was interactive or launched from a script/tool.
+### 1. Determine the exact command usage
+- Review whether the command used:
+  - `net user`
+  - `net user /domain`
+  - a specific username
+- Determine whether the intent was listing all users or checking a particular account.
 
-## Common False Positives
+### 2. Validate system and user role
+- Confirm whether the system is:
+  - a helpdesk/admin machine
+  - server
+  - user endpoint
+- Determine whether the initiating user normally performs account checks.
 
-- legitimate admin troubleshooting
-- help desk checks
-- server build/configuration workflows
-- account administration scripts
+### 3. Look for related discovery activity
+Check for:
+- `whoami`
+- `net group`
+- `nltest`
+- `dsquery`
+- LDAP PowerShell queries
+- DNS or external lookup tool execution
 
-## Escalation Guidance
+### 4. Review follow-on credential or access attempts
+- Look for:
+  - failed NTLM logons
+  - password spray patterns
+  - remote login attempts
+  - LSASS dumping
+  - browser credential access
 
-Escalate when:
-- the activity is performed by a non-admin user
-- it originates from a suspicious or recently compromised host
-- it is one step in a larger discovery burst
-- it is followed by password spraying or lateral movement
-- the user cannot explain the action
+### 5. Validate benign support context
+- Confirm whether the command matches:
+  - helpdesk troubleshooting
+  - account verification
+  - inventory script activity
+  - lab validation
 
-## Recommended Enrichment
+## Common Benign Explanations
+- Helpdesk or administrative account troubleshooting
+- Inventory or support scripts
+- Lab validation activity :contentReference[oaicite:11]{index=11}
 
-- full command line
-- user account and privilege level
-- host type
-- nearby discovery commands
-- related failed/successful logons
-- parent process
-- interactive vs scripted execution context
+## Escalate When
+Escalate if:
+- `net user` appears on a non-admin workstation without explanation
+- the same user performs multiple discovery commands nearby
+- the activity is followed by failed logons or credential access
+- the account being used is not expected to perform user enumeration
+- the host shows signs of broader attacker discovery behavior
 
-## ATT&CK Mapping
+## Suggested Response Actions
+- Preserve the command line and process context
+- Review adjacent discovery and authentication events
+- Search for the same account performing enumeration on other systems
+- Investigate whether the command was part of broader reconnaissance or spray preparation
+- Tune only after validating known support workflows
 
-- Discovery
-- T1087 – Account Discovery
-
-## Related Rule
-
-- `detections/sentinel/discovery/net-user-enumeration.yml`
+## Analyst Notes
+This is a useful low- to medium-confidence discovery signal. It is most valuable when grouped with other built-in reconnaissance commands or authentication anomalies.

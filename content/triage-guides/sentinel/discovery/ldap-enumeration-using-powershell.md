@@ -1,98 +1,110 @@
-# Triage Guide: LDAP Enumeration Using PowerShell
+# LDAP Enumeration Using PowerShell
 
-## Detection Title
-LDAP Enumeration Using PowerShell
+## Goal
+Identify PowerShell-based Active Directory and LDAP enumeration that may indicate domain discovery, user or computer enumeration, or privilege reconnaissance.
 
-## Objective
+## Why This Alert Matters
+PowerShell is commonly used by both administrators and attackers to query Active Directory. Adversaries use LDAP and AD cmdlets to enumerate users, groups, computers, and domain structure, often as a precursor to privilege escalation, lateral movement, or credential access. This guide is based on a rule looking for PowerShell command lines containing AD and LDAP enumeration patterns. :contentReference[oaicite:3]{index=3}
 
-This detection identifies PowerShell-based LDAP or Active Directory enumeration activity that may be used to collect information about users, groups, computers, trusts, or organizational structure.
-
-## Why It Matters
-
-LDAP and AD enumeration are common attacker discovery activities used to:
-- identify users and privileged accounts
-- discover groups and roles
-- locate servers or domain controllers
-- map trust relationships
-- prepare for lateral movement or privilege escalation
-
-PowerShell-based LDAP enumeration is especially important when used from non-admin hosts or by users who do not normally perform directory queries.
-
-## Alert Logic Summary
-
-The rule is intended to identify PowerShell commands or patterns associated with LDAP / AD enumeration, such as:
-- `[ADSISearcher]`
+## What the Detection Is Looking For
+This detection reviews `DeviceProcessEvents` for `powershell.exe` or `pwsh.exe` command lines containing AD and LDAP discovery patterns such as:
 - `Get-ADUser`
 - `Get-ADComputer`
 - `Get-ADGroup`
-- LDAP query strings
-- PowerShell-based directory search methods
+- `Get-ADObject`
+- `DirectorySearcher`
+- `LDAP://`
+- `ADSISearcher`
+- `Get-DomainUser`
+- `Get-DomainComputer` :contentReference[oaicite:4]{index=4}
+
+## Likely ATT&CK Mapping
+- **T1087.002** – Account Discovery: Domain Account
+- **T1018** – Remote System Discovery
 
 ## Initial Triage Questions
+1. Which AD or LDAP query pattern matched?
+2. Was the command executed by a normal admin, script, or unusual user?
+3. Is the system an admin workstation, jump box, or normal endpoint?
+4. Did the query target users, groups, computers, or a broader directory search?
+5. Is PowerView-style or ADSI-style enumeration involved?
+6. Was the activity followed by credential access, lateral movement, or privilege escalation?
+7. Does the host normally run PowerShell-based AD discovery?
 
-- Was the query executed by an admin, engineer, or normal user?
-- Was the host expected to perform directory administration?
-- Was the PowerShell use interactive, scripted, or remote?
-- Did the same session include account enumeration or privileged-group discovery?
-- Was the activity followed by authentication attempts or remote execution?
+## Key Fields To Review
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `ReportId`
 
 ## Investigation Steps
 
-1. Review the full PowerShell command line.
-2. Identify the executing account and host type.
-3. Determine the scope of enumeration:
-   - users
-   - groups
-   - computers
-   - trusts
-   - domain structure
-4. Check whether the activity aligns with the user’s normal role.
-5. Review surrounding PowerShell activity for:
-   - encoded commands
-   - AMSI or logging tampering
-   - remote execution
-   - credential access
-6. Review whether the same host or account later attempted:
-   - NTLM auth probing
-   - WMI / PSRemoting
-   - group membership enumeration
-   - admin share access
+### 1. Identify the enumeration method
+- Review the command line and determine whether the query used:
+  - AD module cmdlets
+  - raw LDAP syntax
+  - `DirectorySearcher`
+  - ADSI
+  - PowerView-like commands
+- Note whether the activity is broad enumeration or a targeted query.
 
-## Common False Positives
+### 2. Determine user and host role
+- Confirm whether the user is:
+  - domain admin
+  - helpdesk
+  - engineer
+  - ordinary user
+- Determine whether the host is used for administrative activity.
 
-- legitimate AD administration
-- identity engineering workflows
-- PowerShell-based inventory scripts
-- help desk scripts
-- authorized security assessments
+### 3. Assess scope of the query
+- Determine whether the command targeted:
+  - accounts
+  - computers
+  - groups
+  - trusts
+  - OUs or broader directory structure
+- Broad or repeated enumeration is more suspicious than a single admin query.
 
-## Escalation Guidance
+### 4. Correlate with post-enumeration behavior
+Look for:
+- `net.exe`, `whoami.exe`, `nltest.exe`, `dsquery.exe`
+- failed logon bursts
+- LSASS dumping
+- token manipulation
+- scheduled task or service creation
+- remote process execution
+- archive creation or exfiltration
 
-Escalate when:
-- the activity is from a non-admin workstation
-- the user is not expected to enumerate AD
-- the activity appears broad or scripted
-- it is followed by credential access or lateral movement
-- the PowerShell execution context is suspicious
+### 5. Validate benign admin context
+- Review whether the command was part of:
+  - support workflows
+  - inventory scripts
+  - audit or compliance collection
+  - identity administration
+- If the context is unclear, prioritize based on host role and user privilege.
 
-## Recommended Enrichment
+## Common Benign Explanations
+- Approved AD administration and support work
+- Identity inventory scripts
+- Lab or validation testing :contentReference[oaicite:5]{index=5}
 
-- full command line
-- PowerShell script block logs if available
-- user role and privilege level
-- host role
-- parent process
-- subsequent logon or remote execution activity
-- related group / trust / account discovery commands
+## Escalate When
+Escalate if:
+- the query runs on a non-admin endpoint
+- the user is not expected to query AD
+- PowerView-style or broad directory search behavior is present
+- the activity is followed by credential access or lateral movement
+- the same host also shows failed logons, remote execution, or persistence
 
-## ATT&CK Mapping
+## Suggested Response Actions
+- Preserve the full PowerShell command line
+- Review recent directory, authentication, and remote-execution activity for the same user
+- Investigate whether the host was used as a staging point for further intrusion
+- Search for the same commands or patterns across the environment
+- Tune only after validating recurring benign identity workflows
 
-- Discovery
-- T1087 – Account Discovery
-- T1069 – Permission Group Discovery
-- T1482 – Domain Trust Discovery
-- T1018 / T1082 depending on scope
-
-## Related Rule
-
-- `detections/sentinel/discovery/ldap-enumeration-using-powershell.yml`
+## Analyst Notes
+This is one of the stronger discovery detections when PowerShell is used outside of normal administration paths. The best discriminator is whether the user and host are expected to run AD enumeration at all.

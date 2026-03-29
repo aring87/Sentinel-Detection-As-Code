@@ -1,94 +1,115 @@
 # Remote Service Creation
 
 ## Goal
-Identify service control activity used to create or start services on remote systems, which may indicate lateral movement or remote execution.
+Identify service-control commands used to create or start services on remote systems for lateral movement or remote execution.
 
 ## Why This Alert Matters
-Attackers frequently use service creation to execute payloads on remote hosts after gaining credentials or administrative access. Tools such as `sc.exe`, `psexec.exe`, and related service-control methods are common in both red-team activity and real intrusions.
+Remote service creation is a classic attacker technique because it enables execution as a service on another system, often using administrative shares, copied binaries, or LOLBins. Tools like `sc.exe`, `PsExec`, and related command chains are commonly used once an attacker has privileged credentials. This guide is based on a rule that detects process creation involving `sc.exe`, `psexec.exe`, or `cmd.exe` with UNC path references and service-control actions like `create`, `start`, or `config`. :contentReference[oaicite:6]{index=6}
 
 ## What the Detection Is Looking For
-This detection looks for process execution involving:
+This detection reviews `DeviceProcessEvents` for:
 - `sc.exe`
 - `psexec.exe`
 - `cmd.exe`
 
-and command-line indicators associated with remote service actions such as:
-- remote host references
-- ` create `
-- ` start `
+and requires:
+- a UNC path reference such as `\\`
+- service-related action words like:
+  - `create`
+  - `start`
+  - `config`
+
+The rule surfaces the process, command line, parent process, and hash so the analyst can understand what remote system and service were targeted. :contentReference[oaicite:7]{index=7}
 
 ## Likely ATT&CK Mapping
-- T1021.002 – SMB/Windows Admin Shares
-- T1569.002 – Service Execution
+- **T1021.002** – SMB/Windows Admin Shares
+- **T1569.002** – Service Execution
 
 ## Initial Triage Questions
 1. What remote host was targeted?
-2. What service name or binary path was used?
-3. Was the activity expected for this account or admin workflow?
-4. Was there evidence of credential theft, remote file copy, or privilege escalation beforehand?
-5. Did the remote service launch a suspicious payload?
+2. What service name and binary path were referenced?
+3. Was the binary copied to an administrative share beforehand?
+4. Is the initiating account expected to create or start remote services?
+5. Was `PsExec` involved, or just `sc.exe` / command-shell wrapping?
+6. Did the service point to a script, LOLBin, or payload from a suspicious location?
+7. Were there preceding logons, file copies, or credential-access events?
 
 ## Key Fields To Review
-- Timestamp
-- DeviceName
-- AccountName
-- FileName
-- ProcessCommandLine
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `SHA1`
+- `ReportId`
 
 ## Investigation Steps
-### 1. Validate the service-control action
-- Confirm which utility was used.
-- Review the full command line for:
-  - target host
-  - service name
-  - binary path
-  - start behavior
-- Determine whether the command was interactive, scripted, or launched by another tool.
 
-### 2. Identify the remote target
-- Extract the hostname or target reference from the command line.
-- Determine whether the target is a server, workstation, admin jump box, or sensitive asset.
-- Check whether the same target was involved in other alerts.
+### 1. Review the remote service command
+- Extract the remote host, service name, and action.
+- Determine whether the command:
+  - creates a new service
+  - starts an existing service
+  - reconfigures a service
+- Look closely at any `binPath=` or payload references.
 
-### 3. Review the initiating account and process lineage
-- Determine whether the account is authorized for remote administration.
-- Review parent and child process relationships.
-- Look for preceding credential access, token theft, or suspicious admin utilities.
+### 2. Identify the payload path
+- Determine whether the service points to:
+  - a trusted application path
+  - `System32`
+  - a UNC path
+  - `C$`, `ADMIN$`, or another admin share
+  - `Temp`, `ProgramData`, `Users\Public`, or `AppData`
+- Service paths in writable or share-based locations are higher risk.
 
-### 4. Correlate with adjacent lateral movement behavior
-Check for:
+### 3. Check for prior staging
+Look for:
+- SMB copy activity
+- file drops to admin shares
+- `psexec` usage
 - remote logons
-- admin share access
-- file copy to remote systems
 - scheduled task creation
-- WMI-based remote execution
-- PsExec-style artifacts
+- WMI execution
+- credential theft or privileged logons
 
-### 5. Assess the payload
-- Determine what binary or command was configured to run.
-- Review signer, path, reputation, and whether it is expected.
-- Check whether it launched from temp paths, shares, or unusual locations.
+### 4. Validate admin or deployment context
+- Determine whether the source host is:
+  - a patch-management server
+  - deployment/orchestration system
+  - admin workstation
+  - normal endpoint
+- Confirm whether the user normally performs remote service work.
+
+### 5. Assess whether execution occurred
+- Review whether the service started successfully.
+- Check the target host for:
+  - new service events
+  - launched child processes
+  - file writes
+  - persistence or follow-on movement
 
 ## Common Benign Explanations
 - Authorized remote administration
 - Software deployment systems
-- Enterprise orchestration tools
-- Helpdesk or infrastructure maintenance
+- Patch management or endpoint management tooling :contentReference[oaicite:8]{index=8}
 
 ## Escalate When
 Escalate if:
-- the account is not expected to perform remote service actions
-- the payload path is suspicious or untrusted
-- other lateral movement or credential abuse indicators exist
-- the action targets multiple hosts
-- the user or admin cannot explain the behavior
+- the service points to a suspicious payload or writable path
+- the source host is not expected to perform remote service work
+- there was preceding credential access or remote file copy activity
+- the target host is high value
+- `PsExec` or `sc.exe` activity appears user-driven rather than management-driven
 
 ## Suggested Response Actions
-- preserve the full command line and process tree
-- capture the target host and service details
-- review remote host execution and service-install events
-- isolate impacted systems if malicious propagation is suspected
-- notify IR for possible lateral movement containment
+- Preserve the full command line and process ancestry
+- Identify the target host and inspect the created or modified service
+- Review related file copies to admin shares
+- Search for the same service name or payload path elsewhere
+- Contain source or target hosts if malicious service execution is confirmed
+- Review privileged accounts involved in the action
 
 ## Analyst Notes
-This is the primary service-based lateral movement guide. It is broader and more useful than the older `sc.exe`/`wmic.exe`-focused version because it also accounts for common remote execution patterns such as PsExec-style behavior.
+This is a high-value lateral-movement analytic because service-based remote execution remains common in real intrusions. Context about the source host, target host, and payload path is the fastest way to separate benign administration from malicious movement.

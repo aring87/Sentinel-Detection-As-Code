@@ -1,102 +1,110 @@
 # PowerShell Email Exfiltration with Attachments
 
 ## Goal
-Identify suspicious PowerShell-based email activity where scripts reference SMTP functionality and file attachments, which may indicate automated data exfiltration.
+Identify PowerShell-based email activity that includes attachment handling and may indicate scripted exfiltration through SMTP or mail libraries.
 
 ## Why This Alert Matters
-PowerShell can be used to send email directly through SMTP libraries or built-in cmdlets. Attackers may script outbound email with attachments to move data outside the environment without relying on interactive user actions.
+PowerShell can be used to send files out through email by calling SMTP libraries or built-in mail functions. Although some internal automation still uses this pattern, attackers can abuse it to exfiltrate documents, archives, or collected data without relying on cloud storage or direct outbound transfer tools. This guide is based on a detection that looks for PowerShell command lines referencing `Send-MailMessage`, `SmtpClient`, `-Attachments`, and SMTP-related terms. :contentReference[oaicite:27]{index=27}
 
 ## What the Detection Is Looking For
-This detection looks for PowerShell command lines containing indicators such as:
+This detection reviews `DeviceProcessEvents` where:
+- `FileName` is `powershell.exe` or `pwsh.exe`
+
+and the command line contains:
 - `Send-MailMessage`
 - `SmtpClient`
 - `-Attachments`
-- `smtp`
+- `smtp` :contentReference[oaicite:28]{index=28}
 
 ## Likely ATT&CK Mapping
-- T1020 – Automated Exfiltration
-- T1048 – Exfiltration Over Alternative Protocol
+- **T1020** – Automated Exfiltration
+- **T1048** – Exfiltration Over Alternative Protocol
 
 ## Initial Triage Questions
-1. What script or command launched the email activity?
-2. Were attachments referenced in the command?
-3. Who were the recipients?
-4. Is the script approved automation or an unexpected ad hoc action?
-5. Was there prior staging, archive creation, or file collection on the host?
+1. What recipients or domains were referenced?
+2. What files or attachments were named in the command?
+3. Was the script approved and expected on the host?
+4. Did the activity follow document access, archive creation, or browser credential access?
+5. Was the sender account a user, service account, or automation account?
+6. Was the mail target internal or external?
+7. Did the same script also stage or collect data before sending?
 
 ## Key Fields To Review
-- Timestamp
-- DeviceName
-- AccountName
-- ProcessCommandLine
-- InitiatingProcessFileName
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `SHA1`
+- `ReportId`
 
 ## Investigation Steps
-### 1. Validate the PowerShell execution
-- Confirm whether `powershell.exe` or `pwsh.exe` launched the command.
-- Review the full command line for:
-  - SMTP server references
-  - attachment paths
+
+### 1. Review the PowerShell command
+- Inspect whether the command references:
+  - SMTP server
   - recipient addresses
-  - subject/body text
-  - encoded or obfuscated content
+  - attachment paths
+  - subject/body automation
+- Determine whether the script uses built-in mail functionality or a library.
 
-### 2. Determine script origin
-- Identify whether the command came from:
-  - a `.ps1` file
-  - interactive shell execution
-  - scheduled task
-  - service account automation
-  - a parent process such as Office, HTA, WMI, or another script host
-- Check script path reputation and whether it lives in temp, user-writable, or admin-managed directories.
-
-### 3. Review attachment targets
-- Identify files referenced with `-Attachments` or equivalent patterns.
-- Determine whether the files are:
-  - archives
+### 2. Identify the attachments
+- Extract any file paths or filenames from the command line.
+- Determine whether the files include:
   - documents
+  - spreadsheets
+  - archives
+  - browser data
+  - logs
   - exports
-  - credential material
-  - screenshots
-  - logs or bulk user data
 
-### 4. Review email destination context
-- Determine whether recipients are:
-  - internal
-  - external personal email
-  - unknown third-party addresses
-  - shared mailboxes
-- Review whether the SMTP server is sanctioned and expected.
-
-### 5. Correlate with surrounding behavior
-Look for preceding activity such as:
+### 3. Correlate with staging or collection
+Look for:
 - archive creation
+- document access
+- browser credential store access
 - clipboard collection
-- screen capture
-- file discovery or collection
-- browser credential access
-- temporary file staging
+- mass file access
+- temp or AppData staging
+
+### 4. Validate business context
+- Determine whether the script belongs to:
+  - alerting
+  - internal notification
+  - legacy admin automation
+  - lab validation
+- Check whether the script source, path, and signer match approved tooling.
+
+### 5. Determine exfiltration direction
+- Review whether recipients are:
+  - internal-only
+  - partner-managed
+  - external personal addresses
+  - suspicious or newly observed
+- External recipient use significantly raises concern.
 
 ## Common Benign Explanations
-- Legacy approved automation using `Send-MailMessage`
-- Monitoring or alert scripts
-- Admin scripts sending log bundles
-- Test or lab automation
+- Approved scripted alerting or email notifications
+- Legacy automation using `Send-MailMessage`
+- Internal notification scripts with attachments :contentReference[oaicite:29]{index=29}
 
 ## Escalate When
 Escalate if:
-- attachments contain sensitive data
-- recipients are unapproved external addresses
-- the script came from a suspicious location
-- the user or admin cannot explain the script
-- the command is encoded, obfuscated, or launched by another suspicious process
+- the script sends attachments externally
+- the attachment paths reference sensitive or staged files
+- the host recently showed collection or archive creation activity
+- the script source is unapproved or suspicious
+- the same endpoint shows other exfiltration or credential-access behavior
 
 ## Suggested Response Actions
-- capture the full PowerShell command line and process tree
-- identify and preserve referenced attachments
-- review mailbox or SMTP logs if available
-- disable or contain the affected account if active exfiltration is suspected
-- isolate the host if correlated malicious activity exists
+- Preserve the full PowerShell command line
+- Collect the script if present
+- Identify the mail server, recipients, and attachment paths
+- Review whether the files were also uploaded or archived elsewhere
+- Search for the same script or SMTP usage across the environment
+- Contain the endpoint if malicious scripted exfiltration is confirmed
 
 ## Analyst Notes
-This guide should be your primary standardized email-exfil triage guide. If you want only one canonical version, prefer this one over the older broader email-exfil rule.
+This is a high-value exfiltration analytic because email-based data transfer can bypass assumptions about cloud uploads or direct file transfer. It is strongest when paired with archive creation or prior collection behavior.

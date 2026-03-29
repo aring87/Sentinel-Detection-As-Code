@@ -1,58 +1,120 @@
 # SharePoint or SaaS Third-Party Integration Secret Access
 
 ## Goal
-Identify suspicious access or modification activity involving integration credentials, application secrets, or config files related to third-party SaaS connections.
+Identify suspicious access or modification activity involving third-party integration credentials or application secrets in cloud and SaaS environments.
 
 ## Why This Alert Matters
-Third-party integration credentials are attractive supply-chain targets. Access to integration config, secrets, or related application credentials can enable downstream cloud or SaaS abuse.
+Integration secrets, app credentials, config files, and token-bearing documents are high-value targets for attackers because they can unlock downstream SaaS, cloud, or supply-chain access. Access to SharePoint or cloud-hosted files containing secrets, combined with app or credential changes, may indicate preparation for broader compromise or persistence. This guide is based on a rule that combines `AuditLogs` application-change activity with `OfficeActivity` access to SharePoint paths containing words like `secret`, `credential`, `integration`, `appsettings`, `config`, or `token`. :contentReference[oaicite:12]{index=12}
 
 ## What the Detection Is Looking For
-This detection looks for:
-- app/service principal credential changes
-- file access to objects with names suggesting:
-  - secrets
-  - credentials
-  - integration config
-  - tokens
-  - app settings
+This detection reviews:
+- `AuditLogs` for:
+  - `Update application`
+  - `Add service principal`
+  - `Add password credential`
+  - `Add key credential`
+- `OfficeActivity` for:
+  - `FileAccessed`
+  - `FileDownloaded`
+  - `FileModified`
+
+where SharePoint or document paths contain likely secret-related terms such as:
+- `secret`
+- `credential`
+- `integration`
+- `appsettings`
+- `config`
+- `token` :contentReference[oaicite:13]{index=13}
+
+## Likely ATT&CK Mapping
+- **T1552** – Unsecured Credentials
+- **T1580** – Cloud Infrastructure Discovery
 
 ## Initial Triage Questions
-1. Was the user expected to maintain integrations?
-2. What secret or config object was accessed?
-3. Did app credential changes occur around the same time?
-4. Did follow-on API or cloud access occur?
+1. What file, config object, or application was accessed or changed?
+2. Did the actor maintain integrations as part of their normal role?
+3. Was the activity in SharePoint, AuditLogs, or both?
+4. Were third-party integration secrets, config files, or token-bearing docs involved?
+5. Did the same actor later use related APIs, apps, or service principals?
+6. Was there overlap with suspicious app registration or consent activity?
+7. Does the activity point to supply-chain or cloud-credential targeting?
 
-## Key Evidence To Review
-- secret/config file names and paths
-- affected SaaS or SharePoint site
-- initiator identity
-- app credential changes
-- API usage after access
+## Key Fields To Review
+- `TimeGenerated`
+- `SourceTable`
+- `OperationName`
+- `InitiatedBy`
+- `TargetResources`
+- `Result`
+- `UserId`
+- `Operation`
+- `OfficeObjectId`
+- `SourceRelativeUrl`
 
 ## Investigation Steps
-1. Determine whether the accessed object truly contains credentials or integration settings.
-2. Validate whether the actor normally performs integration maintenance.
-3. Review concurrent app registration, credential rotation, or service principal changes.
-4. Check for follow-on API use, data export, or mailbox/file access.
-5. Assess whether this aligns with approved maintenance or malicious reconnaissance.
+
+### 1. Identify the secret-bearing asset
+- Determine whether the event involved:
+  - app credentials
+  - service principal credentials
+  - configuration files
+  - token files
+  - integration secrets in SharePoint or SaaS repositories
+- Review the file path or application object involved.
+
+### 2. Review the actor
+- Confirm whether the actor normally:
+  - maintains integrations
+  - administers apps
+  - manages SharePoint configuration repositories
+- Unexpected access by a normal business user is more suspicious.
+
+### 3. Correlate with downstream usage
+Look for:
+- API activity
+- cloud sign-ins
+- consent changes
+- new app secrets
+- service principal sign-ins
+- file export or download bursts
+
+### 4. Assess supply-chain or cloud-risk angle
+- Determine whether the integration connects to:
+  - GitHub
+  - AWS
+  - Azure
+  - third-party SaaS
+  - internal automation platforms
+- Secrets tied to external or high-privilege integrations are higher priority.
+
+### 5. Validate legitimate maintenance context
+- Confirm whether the action aligns with:
+  - approved secret rotation
+  - SharePoint admin work
+  - developer maintenance
+  - integration updates
+- If so, record the context for tuning.
 
 ## Common Benign Explanations
-- approved secret rotation
-- integration maintenance
-- legitimate application updates
+- Approved integration maintenance
+- Legitimate application secret rotation
+- Normal SharePoint admin or developer configuration work :contentReference[oaicite:14]{index=14}
 
 ## Escalate When
 Escalate if:
-- the actor is not expected to access integration secrets
-- secret/config access overlaps with app credential changes
-- follow-on abuse of the connected SaaS or API occurs
-- multiple secret-bearing objects were accessed unexpectedly
+- the actor is not expected to maintain integrations
+- sensitive token or config files were downloaded or modified
+- there are related app-registration, app-secret, or consent events
+- downstream API or service-principal use follows the access
+- the target integration is high value or externally exposed
 
 ## Suggested Response Actions
-- rotate affected credentials or secrets
-- review related app/service-principal activity
-- investigate downstream access using those credentials
-- notify application owners and cloud/security teams
+- Preserve the file-access and audit records
+- Review the affected integration files or app objects
+- Validate the changes with app or SharePoint owners
+- Rotate exposed secrets if compromise is suspected
+- Search for linked API or service-principal activity
+- Review related app registration and cloud identity telemetry
 
 ## Analyst Notes
-This works best in environments with mature SharePoint and SaaS audit coverage.
+This is a strong hybrid resource-development and credential-access analytic. It becomes especially important when SharePoint config access is followed by cloud application changes or API use.

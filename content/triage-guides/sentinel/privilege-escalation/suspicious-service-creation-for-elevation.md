@@ -1,81 +1,113 @@
 # Suspicious Service Creation for Elevation
 
 ## Goal
-Identify local service creation commands that may be used to gain SYSTEM-level execution.
+Identify service creation or configuration commands that may be used to execute code with SYSTEM privileges.
 
 ## Why This Alert Matters
-Creating or configuring a Windows service is a classic way to obtain elevated execution because services often run as SYSTEM. Unlike the lateral movement service rules, this one focuses on local elevation and persistence-style service creation on the host where the command was run.
+Windows services run with powerful privileges and are a common path for privilege escalation and persistence. Attackers may create or modify services so a chosen binary or script runs as SYSTEM. This guide is based on a rule that watches for service-related commands in `sc.exe`, `cmd.exe`, `powershell.exe`, and `pwsh.exe`, especially those containing `create`, `New-Service`, `binPath=`, or `Set-Service`. :contentReference[oaicite:10]{index=10}
 
 ## What the Detection Is Looking For
-This detection looks for:
+This detection reviews `DeviceProcessEvents` where the process is:
 - `sc.exe`
 - `cmd.exe`
 - `powershell.exe`
+- `pwsh.exe`
 
-with command-line indicators such as:
+and the command line contains indicators such as:
 - ` create `
 - `New-Service`
 - `binPath=`
+- `Set-Service` :contentReference[oaicite:11]{index=11}
 
 ## Likely ATT&CK Mapping
-- T1543.003 – Create or Modify System Process: Windows Service
+- **T1543.003** – Create or Modify System Process: Windows Service
 
 ## Initial Triage Questions
-1. What service name and binary path were specified?
-2. Should this user be creating services on the host?
-3. Was the binary legitimate, signed, and stored in a trusted path?
-4. Did the service start successfully afterward?
-5. Was there a dropped payload or privilege escalation chain nearby?
+1. What service name was created or modified?
+2. What `binPath` or payload path was configured?
+3. Does the service point to a script, LOLBin, or unsigned binary?
+4. Is the creating user expected to manage services on this host?
+5. Was the referenced file newly created or dropped recently?
+6. Did the service start successfully and launch a process?
+7. Is this clearly persistence, privilege escalation, or both?
 
 ## Key Fields To Review
-- Timestamp
-- DeviceName
-- AccountName
-- FileName
-- ProcessCommandLine
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `SHA1`
+- `ReportId`
 
 ## Investigation Steps
-### 1. Validate the service creation command
-- Review the full command line.
-- Extract the service name, binary path, and whether `binPath=` points to an expected executable.
-- Determine whether the action was performed through `sc.exe`, CMD, or PowerShell.
 
-### 2. Inspect the target binary
-- Check signer, reputation, path, and recent file creation time.
-- Determine whether the payload lives in:
+### 1. Review the service command
+- Extract the service name and action.
+- Determine whether the event:
+  - created a new service
+  - changed an existing one
+  - set a new `binPath`
+- Note whether it was done through `sc.exe` or PowerShell.
+
+### 2. Inspect the payload path
+- Determine whether the configured binary path points to:
+  - a normal service location
+  - `System32`
+  - `Program Files`
   - `AppData`
   - `Temp`
-  - `ProgramData`
-  - user profile directories
-  - other nonstandard locations
+  - `Users\Public`
+  - scripts or LOLBins
+- Writable or odd paths raise suspicion.
 
-### 3. Review initiator context
-- Determine whether the user should be creating services.
-- Review parent process lineage and whether the action followed UAC bypass, token abuse, or another suspicious launch path.
+### 3. Review file and process context
+- Check whether the referenced binary or script:
+  - exists
+  - is signed
+  - was recently written
+  - was launched afterward
+- Correlate with service start or child-process activity if available.
 
-### 4. Correlate with service start and file activity
-- Look for service start events on the same host.
-- Check for nearby file creation events that dropped the service binary.
-- Determine whether the service launched child processes or created persistence.
+### 4. Correlate with related privilege activity
+Look for:
+- token manipulation or SeDebug use
+- UAC bypass indicators
+- DLL injection tooling
+- recent credential dumping
+- persistence changes
+- suspicious parent process chains
+
+### 5. Validate legitimate admin context
+- Confirm whether the event aligns with:
+  - service deployment
+  - software installation
+  - endpoint management
+  - packaging or maintenance
+- If not, treat as higher risk.
 
 ## Common Benign Explanations
 - Legitimate service deployments by administrators
-- Software installation workflows
+- Approved software installation workflows
+- Endpoint management or software packaging tools :contentReference[oaicite:12]{index=12}
 
 ## Escalate When
 Escalate if:
-- the service path is suspicious or user-writable
-- the user is not expected to create services
-- the service binary is unsigned or newly dropped
-- the activity follows UAC bypass or token abuse
-- multiple persistence or elevation indicators appear together
+- the service points to a writable-path or suspicious payload
+- the user is not expected to create or modify services
+- the binary is unsigned or newly dropped
+- the host shows related UAC bypass, token abuse, or persistence activity
+- the service appears designed to gain SYSTEM for attacker code
 
 ## Suggested Response Actions
-- preserve the full command line and service configuration
-- collect the referenced service binary
-- review service start events and resulting child processes
-- disable or remove the service if malicious
-- hunt for the same service name or binary elsewhere
+- Preserve the full command line and service details
+- Review the resulting service configuration on the endpoint
+- Collect the referenced binary or script if safe
+- Search for the same service name or path across other hosts
+- Disable or revert unauthorized service changes if appropriate
+- Isolate the host if malicious service-based elevation is confirmed
 
 ## Analyst Notes
-This is the primary local service-based privilege escalation guide. Keep it separate from your lateral movement service-creation guide, because this one is focused on gaining SYSTEM privileges on the local host rather than executing remotely.
+This is a strong privilege-escalation analytic because service abuse remains a common way to run attacker code as SYSTEM. The payload path is usually the fastest way to judge severity.

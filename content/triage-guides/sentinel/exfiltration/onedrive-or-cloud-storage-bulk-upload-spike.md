@@ -1,80 +1,109 @@
 # OneDrive or Cloud Storage Bulk Upload Spike
 
 ## Goal
-Identify unusually high-volume uploads to OneDrive or other cloud storage services that may indicate exfiltration.
+Identify spikes in cloud storage upload activity that may indicate large-scale exfiltration to sanctioned or commonly used cloud services.
 
 ## Why This Alert Matters
-Bulk cloud uploads can indicate a user or compromised account is moving large quantities of data to sanctioned or semi-sanctioned services. Even when the platform itself is approved, the behavior may still be malicious.
+Bulk uploads to cloud services can be legitimate, but they can also signal exfiltration, especially when performed by unusual users or after endpoint collection activity. Unlike a single file upload, a burst of many uploads in a short window may indicate deliberate data transfer rather than routine collaboration. This guide is based on a detection that counts cloud upload activity and distinct files uploaded within a 30-minute window. :contentReference[oaicite:24]{index=24}
 
 ## What the Detection Is Looking For
-This detection looks for cloud upload events summarized over a 30-minute period and flags spikes where:
-- upload count is high
-- distinct file count is high
-- activity is associated with cloud storage applications
+This detection reviews `CloudAppEvents` for upload-related actions such as:
+- `FileUploadedToCloud`
+- `FileSyncUploadedFull`
+- `FileUploaded`
+
+It summarizes:
+- total uploads
+- distinct uploaded files
+- applications involved
+
+The rule triggers when both upload count and file-count thresholds are exceeded in a short period. :contentReference[oaicite:25]{index=25}
 
 ## Likely ATT&CK Mapping
-- T1567.002 – Exfiltration to Cloud Storage
+- **T1567.002** – Exfiltration to Cloud Storage
 
 ## Initial Triage Questions
-1. Which account generated the upload spike?
-2. Which cloud application was involved?
-3. Was the volume normal for that user or workflow?
-4. Were the uploaded files recently collected or archived?
-5. Did the uploads go to an expected tenant, workspace, or destination?
+1. Which user performed the bulk upload?
+2. Which cloud application or applications were involved?
+3. How many uploads occurred and how many distinct files were involved?
+4. Is the volume unusual for the user or team?
+5. Was the destination expected and enterprise-controlled?
+6. Did the uploads follow archive creation, collection, or risky sign-ins?
+7. Was the endpoint or user otherwise suspicious?
 
 ## Key Fields To Review
-- AccountObjectId
-- Application
-- Uploads
-- FileCount
-- Timestamp bucket
+- `AccountObjectId`
+- `AccountDisplayName`
+- `Timestamp`
+- `Uploads`
+- `FileCount`
+- `Apps`
 
 ## Investigation Steps
-### 1. Validate the spike
-- Confirm the upload and distinct file counts.
-- Compare the activity to the user’s historical baseline.
-- Determine whether the spike is isolated or repeated.
 
-### 2. Identify the cloud application and account
-- Determine whether activity was in OneDrive or another sanctioned cloud service.
-- Confirm whether the account is user-driven, service-based, or shared.
+### 1. Review upload volume and timing
+- Confirm how many uploads occurred in the alert window.
+- Determine whether the volume is:
+  - normal sync behavior
+  - migration activity
+  - project handoff
+  - unusual for the user
 
-### 3. Review destination trust
-- Determine whether the destination tenant, workspace, or repository is expected.
-- Check whether the upload targeted a corporate location or an unusual external context.
+### 2. Identify the cloud service
+- Review which application or apps were involved.
+- Determine whether the service is:
+  - OneDrive
+  - another enterprise cloud platform
+  - sanctioned storage
+  - unusual for the user’s role
 
-### 4. Correlate with endpoint staging
-Review recent endpoint activity for:
+### 3. Correlate with preceding activity
+Look for:
 - archive creation
-- mass file enumeration
-- temp folder staging
-- scripting activity
-- browser-based upload behavior
+- mass file access
+- document collection
+- risky sign-ins
+- suspicious endpoint process activity
+- device code abuse
+- consent abuse or mailbox indicators
 
-### 5. Assess business context
-- Was there a migration, backup, or bulk collaboration event?
-- Was the user part of an approved project requiring mass uploads?
-- Did change records or tickets document the behavior?
+### 4. Determine data sensitivity
+- Review the types of files likely involved.
+- If additional telemetry is available, prioritize:
+  - archives
+  - source code
+  - identity data
+  - finance or HR content
+  - regulated or sensitive documents
+
+### 5. Validate normal business workflows
+- Confirm whether the activity aligns with:
+  - migration
+  - bulk collaboration
+  - backup or sync jobs
+  - content publishing
+- If yes, capture the details for tuning.
 
 ## Common Benign Explanations
-- legitimate bulk collaboration
-- migrations
-- backup or sync activity
-- onboarding or project-driven file movement
+- Legitimate large-scale sync or migration activity
+- Bulk collaboration uploads during business processes
+- Approved project handoff or content publishing workflows :contentReference[oaicite:26]{index=26}
 
 ## Escalate When
 Escalate if:
-- upload volume is unusual for the account
-- destination context is unexpected
-- archive or collection behavior occurred first
-- files appear sensitive or business-critical
-- user behavior is inconsistent with role or history
+- upload volume is unusual for the user
+- the destination context is unexpected
+- the uploads follow archive creation or endpoint collection
+- the same user shows risky sign-ins or phishing indicators
+- the files likely include sensitive or regulated content
 
 ## Suggested Response Actions
-- review cloud audit detail for uploaded object names and target context
-- investigate related endpoint activity on the user’s device
-- temporarily restrict sharing or session access if exfiltration is ongoing
-- preserve evidence for IR and data-loss review
+- Preserve the upload summary and related cloud telemetry
+- Review M365 or cloud logs for destination details
+- Investigate the user’s recent endpoint and sign-in activity
+- Coordinate with cloud admins to inspect affected files and sharing state
+- Search for similar bulk upload behavior across other users
+- Contain the account if the upload appears malicious or compromised
 
 ## Analyst Notes
-This guide is stronger than a simple OneDrive upload detection because it introduces behavior thresholds. It is a good primary guide for cloud exfiltration spikes, while the generic OneDrive guide is still useful for lower-volume suspicious uploads.
+This is a strong exfiltration-volume analytic, especially in cloud-first environments. The best discriminator is whether the upload volume and destination are normal for that user and whether collection activity happened beforehand.

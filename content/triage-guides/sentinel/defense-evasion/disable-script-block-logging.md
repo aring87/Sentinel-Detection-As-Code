@@ -1,84 +1,97 @@
-# Triage Guide: Disable Script Block Logging
+# Disable Script Block Logging
 
-## Detection Title
-Disable Script Block Logging
+## Goal
+Identify registry changes that disable PowerShell Script Block Logging, reducing visibility into attacker PowerShell activity.
 
-## Detection ID
-dodea-sig-028-disable-script-block-logging
+## Why This Alert Matters
+PowerShell Script Block Logging is one of the most useful sources of visibility for malicious script execution. Attackers may disable it before or during PowerShell abuse to hide encoded commands, download cradles, obfuscated content, or post-exploitation scripts. Changes that set Script Block Logging-related values to disabled should be treated seriously, especially when tied to suspicious PowerShell execution.
 
-## Objective
+## What the Detection Is Looking For
+This detection reviews `DeviceRegistryEvents` for registry modifications involving Script Block Logging and checks for values consistent with disabling the control, especially where the registry data is set to `0`.
 
-This detection identifies registry modifications that disable PowerShell Script Block Logging, reducing visibility into PowerShell execution.
+This older rule is specifically focused on direct disablement of Script Block Logging via registry change.
 
-## Why It Matters
-
-PowerShell Script Block Logging is a high-value telemetry source for:
-- encoded command visibility
-- malicious script inspection
-- post-exploitation activity review
-- analyst triage
-
-Disabling it can indicate deliberate defense evasion intended to conceal PowerShell abuse.
-
-## Alert Logic Summary
-
-The rule looks for:
-- `DeviceRegistryEvents`
-- registry keys containing `ScriptBlockLogging`
-- `RegistryValueData =~ '0'`
-
-This is intended to catch explicit disabling of logging through registry changes.
+## Likely ATT&CK Mapping
+- **T1562** – Impair Defenses
 
 ## Initial Triage Questions
+1. Which registry key was changed?
+2. What value was written?
+3. Which process made the registry modification?
+4. Was the change made by Group Policy, script, or interactive process?
+5. Did the host recently run PowerShell or LOLBins?
+6. Is the device receiving an expected policy update?
+7. Were other logging or security settings also changed?
 
-- Which account changed the registry value?
-- Was the host receiving a legitimate policy update?
-- What process initiated the registry change?
-- Was PowerShell used suspiciously afterward?
-- Was this tied to approved administrative action?
+## Key Fields To Review
+- `Timestamp`
+- `DeviceName`
+- `RegistryKey`
+- `RegistryValueData`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- account context if available
 
 ## Investigation Steps
 
-1. Review the affected registry path and value data.
-2. Identify the initiating process and user account.
-3. Determine whether the host recently received Group Policy or configuration changes.
-4. Review nearby activity for:
-   - encoded PowerShell
-   - mshta/wscript activity
-   - remote execution
-   - security-tool modifications
-5. Determine whether the change happened on one host or across many.
-6. Confirm whether the action is part of approved testing or maintenance.
+### 1. Validate the registry modification
+- Confirm the full registry path.
+- Determine whether the key is tied to:
+  - Script Block Logging
+  - PowerShell policy control
+- Verify whether the value change would disable or weaken logging.
 
-## Common False Positives
+### 2. Identify the initiating process
+- Review the process responsible for the modification.
+- Determine whether it was:
+  - `powershell.exe`
+  - `reg.exe`
+  - a script host
+  - a policy engine
+  - an installer or management platform
 
-- lab or security validation
-- legitimate policy changes in tightly controlled environments
-- administrative logging reconfiguration
+### 3. Review surrounding PowerShell activity
+Look for:
+- encoded commands
+- `Invoke-Expression`
+- `DownloadString`
+- suspicious child processes
+- LOLBin activity
+- external network traffic from PowerShell
 
-## Escalation Guidance
+### 4. Validate policy or admin context
+- Check whether the host recently received a legitimate policy update.
+- Confirm whether the change was approved by administrators or part of a test.
+- Determine whether the host is in a lab or controlled environment.
 
-Escalate when:
-- the initiating process is suspicious or unexpected
-- the change is followed by PowerShell execution
-- the user is not an approved admin
-- the host is high-value
-- the change is isolated and not part of a broader approved policy rollout
+### 5. Search for broader defense evasion
+- Look for:
+  - Defender preference changes
+  - event log clearing
+  - security tool disablement
+  - AMSI bypass indicators
+  - persistence creation after the logging change
 
-## Recommended Enrichment
+## Common Benign Explanations
+- Very limited, but possible in lab or testing environments
+- Controlled security validation
+- Rare policy or troubleshooting changes
 
-- initiating process and parent process
-- registry key/value details
-- recent PowerShell events on the host
-- GPO or policy-change context
-- related LOLBin or network activity
-- host role and ownership
+## Escalate When
+Escalate if:
+- Script Block Logging is explicitly disabled
+- the initiating process is suspicious or user-driven
+- the host also shows PowerShell abuse
+- related logging or Defender settings are changed nearby
+- there is no approved policy or maintenance context
 
-## ATT&CK Mapping
+## Suggested Response Actions
+- Preserve registry and process telemetry
+- Identify the exact scope of PowerShell logging impairment
+- Review recent PowerShell executions on the host
+- Re-enable logging controls if unauthorized
+- Search for the same registry pattern across the environment
+- Investigate the account and process responsible for the change
 
-- Defense Evasion
-- T1562.002 – Impair Defenses: Disable Windows Event Logging / Logging Controls
-
-## Related Rule
-
-- `detections/sentinel/defense-evasion/disable-script-block-logging.yml`
+## Analyst Notes
+This rule is useful as a narrow detection for direct Script Block Logging disablement. It is best interpreted together with broader PowerShell logging weakening and follow-on script execution activity.

@@ -1,89 +1,107 @@
 # Mass File Rename or Encryption Burst
 
 ## Goal
-Identify rapid file modification activity across many folders that may indicate ransomware encryption or other destructive bulk file operations.
+Identify rapid file operations across multiple directories consistent with ransomware encryption, destructive modification, or bulk rename behavior.
 
 ## Why This Alert Matters
-Ransomware commonly touches large numbers of files in a short time across multiple directories. Even before a ransom note appears, a sudden burst of file operations can be an early sign of encryption or destructive impact.
+Ransomware and other destructive tooling often touch large numbers of files in a short time, especially across many directories. A burst of creates, modifies, or renames by a single process can indicate encryption, content corruption, or bulk destructive processing. This guide is based on a rule that looks for unusually high file-operation volume across multiple paths within a 10-minute window. :contentReference[oaicite:11]{index=11}
 
 ## What the Detection Is Looking For
-This detection looks for a high volume of file operations over a 10-minute window and requires:
-- at least 500 file operations
-- activity across at least 10 distinct folder paths
+This detection reviews `DeviceFileEvents` with actions such as:
+- `FileCreated`
+- `FileModified`
+- `FileRenamed`
+
+It summarizes activity by:
+- device
+- account
+- initiating process
+- command line
+- number of unique paths touched
+
+The rule triggers when both file-operation count and directory spread are high. :contentReference[oaicite:12]{index=12}
 
 ## Likely ATT&CK Mapping
-- T1486 – Data Encrypted for Impact
+- **T1486** – Data Encrypted for Impact
 
 ## Initial Triage Questions
-1. What process is making the file changes?
-2. Is the process trusted and expected on this host?
-3. Are files being renamed, encrypted, or otherwise bulk-modified?
-4. Were ransom notes dropped?
-5. Was shadow copy deletion or recovery tampering observed around the same time?
+1. Which process made the file changes?
+2. How many files and paths were affected?
+3. Did the process create unusual file extensions or ransom notes?
+4. Is the process trusted, signed, and expected?
+5. Was the host running backup, sync, migration, or bulk processing software?
+6. Did shadow copy deletion, log clearing, or boot tampering occur nearby?
+7. Is the behavior consistent with ransomware or legitimate mass processing?
 
 ## Key Fields To Review
-- DeviceName
-- InitiatingProcessAccountName
-- InitiatingProcessFileName
-- Timestamp bucket
-- File operation counts
-- Distinct folder path counts
+- `DeviceName`
+- `InitiatingProcessAccountName`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `Timestamp`
+- `FileOps`
+- `Paths`
+- `SamplePaths`
+- `SampleFiles`
 
 ## Investigation Steps
-### 1. Confirm the burst
-- Validate that file operation volume is truly abnormal.
-- Determine whether activity is isolated to a single user profile, shared drive, or broad portions of the host.
-- Review whether the burst repeats across multiple time windows.
 
-### 2. Identify the process
-- Determine the executable performing the changes.
-- Evaluate whether it is:
-  - ransomware or suspicious binary
-  - scripting engine
-  - document conversion tool
-  - sync client
-  - backup/indexing software
-- Review signer, reputation, install path, and parent process.
+### 1. Identify the process responsible
+- Review the process name, signer, path, and parent process.
+- Determine whether the process is:
+  - trusted backup or sync tooling
+  - document conversion software
+  - suspicious or newly dropped binary
+  - LOLBin or script-driven process
 
-### 3. Inspect file characteristics
-- Look for extension changes typical of encryption.
-- Check for ransom notes or text/html instructions.
-- Review whether files became inaccessible or were renamed in a consistent pattern.
+### 2. Review file-change patterns
+- Look for:
+  - extension changes
+  - new encrypted-style extensions
+  - ransom note filenames
+  - repeated rename behavior
+  - patterns across many user directories
 
-### 4. Correlate with recovery inhibition
-Search for nearby:
-- volume shadow copy deletion
-- `vssadmin`/`wmic` shadow operations
-- `bcdedit` or `reagentc` recovery tampering
-- security tool disable attempts
-- log clearing
+### 3. Correlate with anti-recovery activity
+Check for:
+- shadow copy deletion
+- boot/recovery tampering
+- Defender disable attempts
+- event log clearing
+- service or scheduled task creation
 
-### 5. Assess blast radius
-- Determine whether only one host is affected or if there is multi-host spread.
-- Review the same process hash, account, and command line across the environment.
-- Check whether network shares or removable media were impacted.
+### 4. Validate benign mass-processing context
+- Confirm whether the host was doing:
+  - bulk migration
+  - indexing
+  - sync
+  - approved conversion or packaging
+- If not, treat the event as high priority.
+
+### 5. Assess spread and urgency
+- Determine whether the activity is isolated to one folder set or rapidly affecting the broader host.
+- If ongoing, immediate containment may be required.
 
 ## Common Benign Explanations
-- Bulk file migrations
-- Approved conversion jobs
-- Indexing software
-- Backup/sync products
-- Mass rename tools used by administrators or content teams
+- Bulk file migrations or legitimate conversion jobs
+- Backup, indexing, or sync products that touch many files
+- Large-scale content processing by approved business tools :contentReference[oaicite:13]{index=13}
 
 ## Escalate When
 Escalate if:
-- files appear encrypted or renamed in suspicious patterns
-- ransom notes are present
-- the process is untrusted or unknown
-- shadow copy deletion or recovery tampering also occurred
-- multiple devices show the same behavior
+- the process is unknown or suspicious
+- file extensions or ransom-note behavior appear
+- the activity affects many directories quickly
+- there is concurrent shadow copy deletion or recovery tampering
+- the host is not expected to run heavy file-processing tools
 
 ## Suggested Response Actions
-- isolate the host immediately if encryption is active
-- stop or contain the offending process if appropriate
-- preserve process, hash, and file extension evidence
-- identify impacted shares and downstream systems
-- engage IR and recovery teams quickly
+- Preserve process and file telemetry immediately
+- Isolate the host if destructive encryption is likely
+- Review impacted paths and estimate blast radius
+- Look for ransom notes, extension patterns, and recovery impairment
+- Search the environment for the same process or extension pattern
+- Coordinate with IR and backup teams right away
 
 ## Analyst Notes
-This analytic is a strong ransomware-impact signal, especially when combined with shadow copy deletion or boot/recovery tampering on the same device.
+This is one of the highest-priority endpoint impact detections when malicious context is present. The combination of file-operation volume, directory spread, and related anti-recovery behavior is especially important.

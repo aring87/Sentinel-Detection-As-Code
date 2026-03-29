@@ -1,80 +1,115 @@
-# Triage Guide: PowerShell Encoded Command from Temp Folder
+# PowerShell Encoded Command from Temp or User-Writable Path
 
-## Detection Title
-PowerShell Encoded Command from Temp Folder
+## Goal
+Identify encoded PowerShell execution tied to temp or user-writable locations, which may indicate downloaded or staged payload execution.
 
-## Detection ID
-SENT-EXEC-0004
+## Why This Alert Matters
+Encoded PowerShell is already suspicious in many environments, but it becomes even more concerning when the PowerShell binary, parent process, or launch context is tied to writable locations such as `Temp`, `Downloads`, `AppData`, or `Users\Public`. That pattern can indicate recently downloaded scripts, staged malware, or user-driven execution of malicious content. This guide is based on a rule that detects `-enc` or `-encodedcommand` together with writable-path execution context. :contentReference[oaicite:22]{index=22}
 
-## Objective
+## What the Detection Is Looking For
+This detection reviews `DeviceProcessEvents` where:
+- `FileName` is `powershell.exe` or `pwsh.exe`
+- the command line contains `-enc` or `-encodedcommand`
+- the PowerShell process path or parent process folder path contains:
+  - `\Temp\`
+  - `\AppData\Local\`
+  - `\AppData\Roaming\`
+  - `\Users\Public\`
+  - `\Downloads\`
 
-This detection identifies PowerShell encoded-command execution where the parent, script path, or surrounding activity suggests execution from a temporary directory or other staging location.
+It also attempts to decode the encoded payload for analysis. :contentReference[oaicite:23]{index=23}
 
-## Why It Matters
-
-Encoded PowerShell from temp-like paths is more suspicious than encoded PowerShell alone because it suggests:
-- staged malware execution
-- user-writable path abuse
-- unpacked or downloaded payload execution
-- short-lived script launchers
-
-This is useful as a higher-context sibling to the broader encoded-command rule.
-
-## Alert Logic Summary
-
-The rule is intended to identify encoded PowerShell execution associated with temp or staging paths. Review the final YAML to confirm the exact path conditions and process fields being used.
+## Likely ATT&CK Mapping
+- **T1059.001** – Command and Scripting Interpreter: PowerShell
 
 ## Initial Triage Questions
+1. Which writable path was involved: process path, parent path, or both?
+2. What does the decoded command do?
+3. Did the payload originate from a recent download or dropped file?
+4. Which parent process launched PowerShell?
+5. Is there a recently created file in the same path?
+6. Was the execution user-driven, scripted, or service-driven?
+7. Did the activity lead to persistence, outbound connections, or credential access?
 
-- Did the script or binary execute from temp or another user-writable path?
-- Was the encoded command decoded successfully?
-- Was the file recently downloaded or extracted?
-- What launched the encoded PowerShell?
-- Is the host exhibiting multiple attacker behaviors?
+## Key Fields To Review
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FolderPath`
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessFolderPath`
+- `InitiatingProcessCommandLine`
+- `Encoded`
+- `Decoded`
+- `SHA1`
+- `ReportId`
 
 ## Investigation Steps
 
-1. Review the full command line and decoded payload.
-2. Identify the execution path, parent process, and user context.
-3. Determine whether the file or script originated from:
-   - browser download
-   - archive extraction
-   - email attachment
-   - temp staging
-4. Review surrounding process, file, and network events.
-5. Check for persistence or credential access after execution.
-6. Determine whether the behavior matches known deployment or admin workflows.
+### 1. Review the writable-path context
+- Determine whether the suspicious context came from:
+  - the PowerShell executable path
+  - the parent process path
+  - a recent file in the same folder
+- Confirm whether the location is truly user-writable or transient.
 
-## Common False Positives
+### 2. Decode the payload
+- Review the decoded content for:
+  - downloads
+  - process launch
+  - registry writes
+  - persistence logic
+  - credential theft
+  - anti-defense behavior
+- Treat layered or nested encoding as especially suspicious.
 
-- approved admin scripts staged temporarily
-- software deployment tooling
-- packaging workflows using temp extraction paths
+### 3. Trace file origin
+- Check whether the payload was launched from:
+  - browser download
+  - archive extraction
+  - dropped file in AppData or Temp
+  - copied file from network share
+- Review nearby file creation and modification events.
 
-## Escalation Guidance
+### 4. Correlate with post-execution behavior
+Look for:
+- network connections
+- scheduled tasks
+- Run key changes
+- service creation
+- Defender tampering
+- browser credential access
+- archive creation or exfiltration
 
-Escalate when:
-- the decoded content is suspicious
-- the path is user-writable and abnormal
-- the activity is paired with downloads or staging
-- the parent process is suspicious
-- there are related defense-evasion or persistence events
+### 5. Validate any benign explanation
+- Determine whether the host is used for:
+  - development
+  - packaging
+  - lab testing
+  - admin scripting from temporary folders
+- This should be uncommon on most standard endpoints.
 
-## Recommended Enrichment
+## Common Benign Explanations
+- Rare internal admin scripts launched from downloads or temp locations
+- Developer testing from unpacked or transient working folders :contentReference[oaicite:24]{index=24}
 
-- decoded command
-- temp path details
-- parent and child processes
-- download source if present
-- archive or extraction events
-- registry and persistence activity
-- network connections near execution time
+## Escalate When
+Escalate if:
+- the decoded payload is malicious or suspicious
+- the launch context is from Temp, Downloads, AppData, or Users\Public
+- the parent process is browser, Explorer, Office, or another user-driven chain
+- there is follow-on persistence or network activity
+- the file appears newly downloaded or staged
 
-## ATT&CK Mapping
+## Suggested Response Actions
+- Preserve the encoded and decoded content
+- Collect nearby file artifacts from the writable path
+- Review user interaction and download history
+- Isolate the host if malicious staged execution is confirmed
+- Search for the same path, payload, or hash elsewhere in the environment
+- Tune carefully, because writable-path encoded PowerShell should usually remain high interest
 
-- Execution
-- T1059.001 – Command and Scripting Interpreter: PowerShell
-
-## Related Rule
-
-- `detections/sentinel/execution/powershell-encoded-command-from-temp-folder.yml`
+## Analyst Notes
+This is a narrower, higher-confidence companion to general encoded PowerShell detection. The writable-path context often makes the difference between suspicious automation and likely malicious staging.

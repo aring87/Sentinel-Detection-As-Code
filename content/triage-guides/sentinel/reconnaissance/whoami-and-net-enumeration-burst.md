@@ -1,88 +1,112 @@
 # Whoami and Net Enumeration Burst
 
 ## Goal
-Identify bursts of host and domain enumeration commands that may indicate local or domain reconnaissance activity.
+Identify bursts of account, trust, and environment-enumeration commands that may indicate host or domain reconnaissance.
 
 ## Why This Alert Matters
-Attackers often chain together commands like `whoami`, `net user`, `net group`, `nltest`, and `dsquery` to quickly understand account context, domain relationships, trust configuration, and available targets. A burst pattern is more suspicious than a single command because it suggests active recon rather than casual troubleshooting.
+Attackers often use built-in Windows commands to quickly profile a system and its surrounding domain environment. A burst of commands like `whoami`, `net`, `net1`, `nltest`, and `dsquery` can reveal local identity, domain membership, trust relationships, user and group information, and administrative opportunities. This guide is based on a rule that groups these commands over a 10-minute window and alerts when the command count exceeds a threshold. :contentReference[oaicite:9]{index=9}
 
 ## What the Detection Is Looking For
-This detection reviews `DeviceProcessEvents` for commands such as:
+This detection reviews `DeviceProcessEvents` for:
 - `whoami.exe`
 - `net.exe`
+- `net1.exe`
 - `nltest.exe`
 - `dsquery.exe`
 
-and flags hosts/accounts with:
-- 5 or more enumeration commands
-- within a 10-minute window
+It summarizes:
+- total command count
+- command lines seen
+- processes used
+
+by device, account, and 10-minute window. The rule triggers when the burst is large enough to suggest meaningful reconnaissance rather than a single admin check. :contentReference[oaicite:10]{index=10}
 
 ## Likely ATT&CK Mapping
-- T1087 – Account Discovery
-- T1016 – System Network Configuration Discovery
-- T1482 – Domain Trust Discovery
+- **T1087** – Account Discovery
+- **T1016** – System Network Configuration Discovery
+- **T1482** – Domain Trust Discovery
 
 ## Initial Triage Questions
-1. What exact commands were run in the burst?
-2. Is the account expected to perform domain or host enumeration?
-3. Was this admin troubleshooting, inventory collection, or suspicious discovery?
-4. Did the same user later access remote systems or credentials?
-5. Is the host a workstation, admin jump box, or server?
+1. How many recon commands ran in the burst?
+2. Which exact commands were executed?
+3. Did the commands target local information, domain information, or trust data?
+4. Is the account expected to perform domain reconnaissance?
+5. Was the host an admin workstation, helpdesk box, or standard endpoint?
+6. Did the burst occur before credential access, remote execution, or lateral movement?
+7. Was the activity manual or part of a scripted or automated sequence?
 
 ## Key Fields To Review
-- DeviceName
-- AccountName
-- Timestamp bucket
-- CommandCount
-- Commands
+- `DeviceName`
+- `AccountName`
+- `Timestamp`
+- `CommandCount`
+- `Commands`
+- `Procs`
 
 ## Investigation Steps
-### 1. Validate the burst
-- Review the exact set of commands in the 10-minute window.
-- Determine whether the commands focused on:
-  - account discovery
-  - local admin discovery
-  - domain trust discovery
-  - network/share enumeration
-- Assess whether the sequence looks scripted or manual.
 
-### 2. Review account and host context
-- Determine whether the user is expected to do admin troubleshooting.
-- Review whether the host role supports this kind of activity.
-- Check whether the behavior is common for that account.
+### 1. Review the burst contents
+- Inspect the collected command lines.
+- Determine whether the sequence focused on:
+  - account identity
+  - group membership
+  - trust relationships
+  - domain membership
+  - environment layout
+- Multiple different discovery categories increase suspicion.
 
-### 3. Correlate with follow-on activity
+### 2. Assess user and host role
+- Determine whether the account is:
+  - helpdesk
+  - domain admin
+  - engineering or operations
+  - standard user
+- Determine whether the host is expected to perform administrative discovery.
+
+### 3. Identify whether the activity was scripted
+- Check process ancestry and timing.
+- Decide whether the commands were:
+  - typed manually
+  - launched by a batch script
+  - launched through PowerShell
+  - run after another suspicious process or remote-access session
+
+### 4. Correlate with adjacent activity
 Look for:
-- remote service sign-ins
-- WMI or service-based lateral movement
-- SMB access
-- credential dumping or LSASS access
-- archive creation or exfiltration
+- external lookup tool usage
+- network scanner execution
+- LDAP enumeration
+- failed NTLM logons
+- LSASS dumping
+- service creation
+- WMI or scheduled-task-based lateral movement
 
-### 4. Review process ancestry
-- Determine whether a script, scheduled task, or remote session launched the commands.
-- Check whether they were run from an interactive shell, PowerShell, or admin tool.
+### 5. Validate benign admin context
+- Confirm whether the activity aligns with:
+  - admin troubleshooting
+  - helpdesk account and trust checks
+  - inventory or audit scripts
+- If not, prioritize more aggressively.
 
 ## Common Benign Explanations
-- Administrator troubleshooting
-- Domain support operations
-- Inventory or audit scripts
-- Lab validation
+- Administrator troubleshooting or domain support activity
+- Automated inventory or audit scripts
+- Helpdesk account and trust verification workflows :contentReference[oaicite:11]{index=11}
 
 ## Escalate When
 Escalate if:
-- the user is not expected to perform domain recon
-- the commands are unusually dense or scripted
-- lateral movement or credential access follows
-- the activity occurs on a compromised or suspicious host
-- the same pattern appears on multiple endpoints
+- the burst occurs on a normal endpoint
+- the user is not expected to perform domain discovery
+- the command set includes trust or account-enumeration behavior
+- the activity is followed by credential access or lateral movement
+- the sequence appears automated or tied to a suspicious parent process
 
 ## Suggested Response Actions
-- preserve the command burst and initiating process context
-- review nearby auth, remote access, and credential events
-- validate whether the account is authorized for this activity
-- hunt for the same pattern across the environment
-- escalate to IR if the sequence appears malicious or unexplained
+- Preserve the full set of command lines
+- Review recent and subsequent activity on the same host and user
+- Search for the same burst pattern across other systems
+- Correlate with authentication, privilege, and lateral-movement telemetry
+- Tune only after confirming recurring benign admin or audit workflows
 
 ## Analyst Notes
-This guide sits between reconnaissance and discovery. Keep it in your recon folder if you want a pre-lateral-movement hunting view, but its ATT&CK mapping also overlaps with Discovery, which is normal for this type of behavior.
+This is a useful burst-style reconnaissance analytic because it captures a pattern of discovery rather than a single command. It becomes much stronger when followed by credential access, scanning, or remote execution.

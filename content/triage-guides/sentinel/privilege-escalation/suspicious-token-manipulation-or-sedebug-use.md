@@ -1,82 +1,111 @@
 # Suspicious Token Manipulation or SeDebug Use
 
 ## Goal
-Identify command lines and tooling associated with token theft, impersonation, or privilege manipulation on Windows endpoints.
+Identify tools or command-line artifacts commonly associated with token theft, impersonation, or elevation attempts.
 
 ## Why This Alert Matters
-Token abuse is a common privilege escalation technique. Attackers and offensive tools may use token duplication, impersonation, SeDebug privilege, or commands like `getsystem` to move from a lower-privileged context into a more powerful one.
+Token abuse and SeDebug-related operations are common in privilege escalation and post-exploitation because they can let an attacker impersonate users, duplicate tokens, spawn elevated processes, or interact with protected processes. This guide is based on a rule that looks for process command lines containing strings such as `SeDebugPrivilege`, `DuplicateToken`, `CreateProcessWithTokenW`, `ImpersonateLoggedOnUser`, `Incognito`, `getsystem`, and `SeAssignPrimaryTokenPrivilege`. :contentReference[oaicite:13]{index=13}
 
 ## What the Detection Is Looking For
-This detection looks for command-line references such as:
+This detection reviews `DeviceProcessEvents` where `ProcessCommandLine` contains indicators such as:
 - `SeDebugPrivilege`
 - `DuplicateToken`
 - `CreateProcessWithTokenW`
+- `ImpersonateLoggedOnUser`
 - `Incognito`
 - `getsystem`
+- `SeAssignPrimaryTokenPrivilege` :contentReference[oaicite:14]{index=14}
 
 ## Likely ATT&CK Mapping
-- T1134 – Access Token Manipulation
-- T1068 – Exploitation for Privilege Escalation
+- **T1134** – Access Token Manipulation
+- **T1068** – Exploitation for Privilege Escalation
 
 ## Initial Triage Questions
-1. What tool or process referenced the token-manipulation strings?
-2. Was the process launched from an expected admin, security, or lab context?
-3. Did the process integrity level or token context change?
-4. Was there nearby LSASS access, service abuse, or credential dumping behavior?
-5. Is this host part of approved testing or red-team activity?
+1. What exact token-manipulation string triggered the alert?
+2. Which tool or script contained the string?
+3. Is the host a security-testing, research, or lab system?
+4. Did the process also access LSASS or use SeDebug-related capabilities?
+5. Were elevated child processes spawned afterward?
+6. Did the same host show service creation, UAC bypass, or injection tooling?
+7. Is the process path, signer, or parent chain suspicious?
 
 ## Key Fields To Review
-- Timestamp
-- DeviceName
-- AccountName
-- FileName
-- ProcessCommandLine
-- InitiatingProcessFileName
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `SHA1`
+- `ReportId`
 
 ## Investigation Steps
-### 1. Identify the tool and ancestry
-- Review the executable name and full command line.
-- Determine whether the behavior came from:
-  - offensive tooling
-  - PowerShell
-  - a custom binary
-  - a security lab workflow
-- Review parent and grandparent processes.
 
-### 2. Assess privilege context
-- Determine whether the process gained elevated rights, impersonated another token, or attempted to launch a new process with another token.
-- Review whether the account should have had admin or debug rights on the host.
+### 1. Identify the triggering artifact
+- Determine which string or tool reference caused the alert.
+- Review whether the process appears to be:
+  - a known offensive tool
+  - research tooling
+  - custom script
+  - unknown binary
+- Capture the full command line for context.
 
-### 3. Correlate with adjacent high-risk activity
-Check for:
-- LSASS access
-- service creation or service abuse
-- credential dumping
+### 2. Review process ancestry and path
+- Inspect the parent process, binary path, and signer.
+- Determine whether the binary launched from:
+  - a lab toolset
+  - admin utilities
+  - `Temp`
+  - `AppData`
+  - `Downloads`
+- User-writable locations increase suspicion.
+
+### 3. Check for follow-on elevated behavior
+Look for:
+- elevated child-process creation
+- integrity-level changes if available
+- service creation
 - UAC bypass
-- remote execution or lateral movement
+- LSASS access or dump attempts
+- DLL injection or suspicious memory tooling
 
-### 4. Validate environment context
-- Determine whether this is approved red-team, purple-team, or lab activity.
-- Check maintenance windows, testing approvals, and known security tool usage.
+### 4. Validate lab or security context
+- Confirm whether the host is:
+  - a red-team asset
+  - training machine
+  - exploit-development system
+  - malware-analysis environment
+- If not, prioritize more aggressively.
+
+### 5. Correlate with adjacent attack activity
+- Search for:
+  - credential dumping
+  - persistence
+  - remote execution
+  - outbound network activity
+  - suspicious file drops
+- Token abuse rarely appears alone in serious intrusions.
 
 ## Common Benign Explanations
 - Approved red-team or lab activity
-- Security research or test tooling in a controlled environment
+- Security tool strings in research environments
+- Internal training or controlled exploit development environments :contentReference[oaicite:15]{index=15}
 
 ## Escalate When
 Escalate if:
-- the tool is unknown or suspicious
-- the account should not be performing token operations
-- LSASS or service abuse appears nearby
-- the host is production and not part of testing
-- there is evidence of follow-on SYSTEM or admin-level execution
+- the host is not a known test or security system
+- the process is unknown, unsigned, or user-writable
+- there is evidence of LSASS access, service creation, or elevated child processes
+- the same actor also shows UAC bypass or persistence behavior
+- the command line strongly implies active token theft or impersonation
 
 ## Suggested Response Actions
-- preserve the full command line and process tree
-- capture the tool or binary for analysis
-- review integrity level changes and downstream processes
-- check the same host for LSASS access or service-based execution
-- notify IR if the behavior is unexplained or malicious
+- Preserve process, command-line, and parent-process evidence
+- Collect the binary or script if safe to do so
+- Review adjacent credential-access and privilege-escalation telemetry
+- Search for the same artifact or hash elsewhere
+- Isolate the host if malicious token abuse is confirmed
 
 ## Analyst Notes
-This is your primary guide for token abuse and SeDebug-style privilege escalation. It is broad enough to catch several common offensive strings while still pointing the analyst toward validation of process ancestry and nearby credential or service abuse.
+This is a strong artifact-based privilege-escalation analytic. The most important triage step is deciding whether the tool and host context make sense for legitimate research or clearly indicate attacker activity.

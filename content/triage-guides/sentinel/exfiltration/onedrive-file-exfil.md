@@ -1,84 +1,93 @@
-# OneDrive File Exfiltration
+# OneDrive File Upload Activity
 
 ## Goal
-Identify suspicious file upload activity to OneDrive that may represent data exfiltration.
+Identify OneDrive file uploads that may support exfiltration when correlated with risky sign-ins, archive creation, or unusual endpoint behavior.
 
 ## Why This Alert Matters
-Cloud storage is a common exfiltration path because it blends into normal user activity. OneDrive uploads can be legitimate collaboration, but they can also be used to move data to unauthorized or personal storage locations.
+OneDrive is a legitimate and commonly used collaboration platform, which makes it attractive for attacker exfiltration. A single upload is not inherently malicious, but OneDrive file uploads become more suspicious when tied to risky sign-ins, unusual device activity, archive creation, or users who do not normally move data this way. This guide is based on a rule that watches for OneDrive `FileUploaded` activity in `CloudAppEvents`. :contentReference[oaicite:21]{index=21}
 
 ## What the Detection Is Looking For
-This detection looks for `CloudAppEvents` where:
+This detection reviews `CloudAppEvents` where:
 - `Application == "OneDrive"`
-- upload-related activity indicates files were sent to the cloud
+- `ActionType` contains `FileUploaded`
+
+The detection projects the user, application, object name, IP address, and raw event data for review. :contentReference[oaicite:22]{index=22}
 
 ## Likely ATT&CK Mapping
-- T1567.002 – Exfiltration to Cloud Storage
+- **T1567.002** – Exfiltration to Cloud Storage
 
 ## Initial Triage Questions
 1. Which user performed the upload?
-2. Was the OneDrive destination expected and organizationally managed?
-3. Was the upload volume normal for that user?
-4. Were the uploaded files sensitive, bulk, or recently staged?
-5. Was there related collection or archive activity beforehand?
+2. What file or object was uploaded?
+3. Was the source device or sign-in context unusual?
+4. Is OneDrive upload behavior normal for this user?
+5. Did the upload follow archive creation, bulk file access, or risky sign-ins?
+6. Was the destination tenant or context expected?
+7. Are there related mailbox, SharePoint, or cloud-app indicators nearby?
 
 ## Key Fields To Review
-- user/account identifier
-- application
-- action type
-- object or file name
-- timestamp
-- tenant or destination context if available
+- `Timestamp`
+- `AccountObjectId`
+- `AccountDisplayName`
+- `Application`
+- `ActionType`
+- `ObjectName`
+- `IPAddress`
+- `RawEventData`
 
 ## Investigation Steps
-### 1. Validate the upload event
-- Confirm the action type reflects upload behavior.
-- Determine whether the upload was interactive, synced, or application-driven.
 
-### 2. Identify the account and destination context
-- Confirm whether the upload went to:
-  - corporate OneDrive
-  - another tenant
-  - a personal or unmanaged cloud destination
-- Determine whether cross-tenant or abnormal sharing behavior exists.
+### 1. Review the uploaded object
+- Identify the file or object name.
+- Determine whether it appears sensitive, compressed, or related to project or identity data.
+- If available, review file size, site path, and upload destination context.
 
-### 3. Assess upload content
-- Review object names if available.
-- Identify whether files appear sensitive, bulk, or archive-based.
-- Check for recent ZIP, RAR, or 7Z creation on the endpoint.
+### 2. Validate user behavior
+- Determine whether the user commonly uploads to OneDrive.
+- Compare the event to the user’s normal collaboration or sync habits.
+- Pay close attention to uploads by admins, executives, or service accounts.
 
-### 4. Correlate with endpoint activity
+### 3. Correlate with risky context
 Look for:
+- risky sign-ins
 - archive creation
-- mass file access
-- PowerShell or script-based collection
-- email exfiltration attempts
-- unusual network or browser upload behavior
+- bulk file access
+- mass document collection
+- device code abuse
+- suspicious browser credential access
+- endpoint staging activity
 
-### 5. Compare to baseline
-- Does this user normally upload files to OneDrive?
-- Is the time of day, device, or volume unusual?
-- Is the uploading device unmanaged, high-risk, or newly enrolled?
+### 4. Determine whether the destination is expected
+- Review whether the upload stayed within enterprise-controlled OneDrive context or crossed into an unusual tenant or account boundary.
+- If raw event details support it, confirm the destination user/site/workspace.
+
+### 5. Validate benign collaboration
+- Confirm whether the upload was part of:
+  - normal sync
+  - project handoff
+  - document sharing
+  - remote work collaboration
+- If yes, document the context for tuning.
 
 ## Common Benign Explanations
-- normal user collaboration
-- standard OneDrive sync activity
-- project migrations
-- bulk upload during business workflow
+- Normal user collaboration and synchronization
+- Approved business uploads :contentReference[oaicite:23]{index=23}
 
 ## Escalate When
 Escalate if:
-- destination appears personal or unapproved
-- file volume or sensitivity is abnormal
-- upload follows collection or archive creation
-- user context does not match normal behavior
-- related alerts exist on the same user or endpoint
+- the upload follows archive creation or bulk collection
+- the sign-in context is risky or unusual
+- the user does not normally upload through OneDrive
+- the uploaded object appears sensitive or suspicious
+- the same user shows other exfiltration or cloud-abuse indicators
 
 ## Suggested Response Actions
-- review cloud audit details and object names
-- check sharing, tenant, and session context
-- preserve related endpoint telemetry
-- restrict account or session if active data theft is suspected
-- involve IR and data owners for data impact assessment
+- Preserve the upload event and user context
+- Review nearby cloud, sign-in, and endpoint activity
+- Identify whether the uploaded data is sensitive
+- Search for similar uploads by the same user or host
+- Coordinate with M365 admins to review file location and sharing state
+- Revoke sessions or investigate the account if broader compromise is suspected
 
 ## Analyst Notes
-This guide is intentionally broad and useful for general OneDrive upload review. It complements, rather than fully replaces, the bulk-upload spike guide.
+This is a useful lower- to medium-confidence exfiltration indicator on its own. It becomes much stronger when combined with risky sign-ins, archive creation, or unusual endpoint collection activity.

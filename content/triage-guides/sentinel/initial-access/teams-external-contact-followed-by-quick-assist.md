@@ -1,54 +1,109 @@
 # Teams External Contact Followed by Quick Assist
 
 ## Goal
-Identify possible social-engineering chains in which external Teams contact or chat activity is followed by Quick Assist execution.
+Identify potential social-engineering chains where external Teams contact activity is followed by Quick Assist usage for the same user.
 
 ## Why This Alert Matters
-Attackers may use Teams to impersonate IT or support staff, then move the user into Quick Assist for hands-on-keyboard access. This pattern is especially relevant in Microsoft-centric environments.
+Attackers increasingly use collaboration platforms and social engineering to contact users directly, build trust, and then convince them to launch remote-assistance tools. When external or guest Teams activity is followed shortly by Quick Assist on the same user’s device, that may indicate a help-desk scam, fake support interaction, or other social-engineering-driven initial access. This guide is based on a rule that correlates external Teams interaction with Quick Assist usage within a short time window. :contentReference[oaicite:21]{index=21}
 
 ## What the Detection Is Looking For
-This detection looks for:
-- external or guest Teams contact activity
-- followed within a short time window by Quick Assist usage
-- for the same user
+This detection correlates:
+- `OfficeActivity` for Microsoft Teams events involving:
+  - external
+  - guest
+  - federated parameters
+- `DeviceProcessEvents` for:
+  - `quickassist.exe`
+
+It looks for Quick Assist activity occurring within roughly two hours of external or guest Teams interaction by the same user. :contentReference[oaicite:22]{index=22}
+
+## Likely ATT&CK Mapping
+- **T1566** – Phishing
+- **T1219** – Remote Access Software
 
 ## Initial Triage Questions
-1. Was the Teams contact internal, guest, or external?
-2. Did the external party claim to be support or IT?
-3. Did the user then accept a Quick Assist session?
-4. Were scripts, tools, or downloads launched afterward?
+1. Did the user recently interact with an external or guest Teams contact?
+2. What was the nature of the Teams interaction: message, chat, call, or meeting?
+3. Did Quick Assist start shortly afterward?
+4. Was the user expecting support or remote help?
+5. Did the external contact claim to be IT, support, or security staff?
+6. Was there follow-on script execution, download, or file transfer after Quick Assist?
+7. Does the sequence match any known scam or support-fraud pattern?
 
-## Key Evidence To Review
-- Teams operation type
-- external/guest indicators
-- Quick Assist timing
-- user account and endpoint
-- follow-on endpoint activity
+## Key Fields To Review
+- `TeamsTime`
+- `QATime`
+- `UserUpn`
+- `DeviceName`
+- `Operation`
+- `Parameters`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
 
 ## Investigation Steps
-1. Review the Teams contact and whether it was external or guest-originated.
-2. Determine whether the user was coached into accepting remote help.
-3. Review Quick Assist execution on the endpoint.
-4. Check for PowerShell, batch, RMM, or download activity after the session started.
-5. Validate with the user what instructions they received.
+
+### 1. Review the Teams interaction
+- Determine whether the activity involved:
+  - external message
+  - guest chat
+  - call
+  - meeting participant addition
+- Inspect parameters for evidence that the contact was external, federated, or guest.
+
+### 2. Validate user expectation
+- Confirm whether the user expected support or a remote-help request.
+- Ask whether the contact claimed to be:
+  - helpdesk
+  - IT admin
+  - security
+  - vendor support
+- Unexpected support narratives are highly relevant.
+
+### 3. Review Quick Assist timing and use
+- Confirm how quickly Quick Assist started after the Teams event.
+- Review whether the session was:
+  - user-initiated
+  - expected
+  - approved by IT
+  - suspiciously timed with the external interaction
+
+### 4. Check for follow-on malicious activity
+Look for:
+- script execution
+- RMM tool launch
+- suspicious downloads
+- persistence creation
+- file transfer or exfiltration
+- archive creation
+- browser credential access
+
+### 5. Validate benign collaboration context
+- Determine whether the Teams interaction was part of:
+  - known external collaboration
+  - approved support
+  - guest meeting activity
+- If the user and support records do not support the sequence, escalate.
 
 ## Common Benign Explanations
-- approved external collaboration
-- legitimate support interactions
-- vendor troubleshooting through federated Teams workflows
+- Legitimate external Teams collaboration followed by support activity
+- Guest meetings or chats that precede approved helpdesk sessions :contentReference[oaicite:23]{index=23}
 
 ## Escalate When
 Escalate if:
-- the external contact is suspicious or unknown
-- the user was convinced to accept remote access
-- follow-on script or payload activity occurred
-- similar events affected multiple users
+- the user did not expect the Quick Assist session
+- the external contact claimed to be IT or support without validation
+- Quick Assist was followed by script execution, downloads, or data transfer
+- the sequence aligns with help-desk scam or vishing patterns
+- the same device shows persistence or credential-access behavior afterward
 
 ## Suggested Response Actions
-- notify messaging/collaboration admins
-- preserve Teams interaction evidence
-- isolate affected hosts if malicious activity followed
-- review external chat histories for wider targeting
+- Preserve Teams, process, and timing evidence
+- Validate the interaction directly with the user if appropriate
+- Review Quick Assist session context and any support records
+- Investigate follow-on endpoint behavior immediately
+- Search for similar external Teams-to-Quick Assist sequences across other users
+- Contain the device if remote-access abuse is confirmed
 
 ## Analyst Notes
-This is best tuned in environments with frequent external Teams collaboration.
+This is a strong social-engineering sequence analytic. It is especially valuable in environments where collaboration tools are used heavily and attackers may exploit user trust rather than deliver traditional malware first.

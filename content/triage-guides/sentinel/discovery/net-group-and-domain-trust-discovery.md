@@ -1,95 +1,113 @@
-# Triage Guide: Net Group and Domain Trust Discovery
+# Net Group and Domain Trust Discovery
 
-## Detection Title
-Net Group and Domain Trust Discovery
+## Goal
+Identify use of built-in Windows tools to enumerate group membership, domain information, and trust relationships.
 
-## Objective
+## Why This Alert Matters
+Attackers frequently use built-in commands like `net.exe`, `nltest.exe`, `dsquery.exe`, and `whoami.exe` to learn how a domain is structured and where privileged access may exist. Group and trust discovery can reveal opportunities for privilege escalation, lateral movement, and targeting of administrative paths. This guide is based on a rule that looks for those built-in tools with trust-, group-, and account-related arguments. :contentReference[oaicite:6]{index=6}
 
-This detection identifies use of commands associated with group enumeration, domain trust discovery, and related domain reconnaissance.
+## What the Detection Is Looking For
+This detection reviews `DeviceProcessEvents` for:
+- `net.exe`
+- `net1.exe`
+- `nltest.exe`
+- `dsquery.exe`
+- `whoami.exe`
 
-## Why It Matters
+It looks for command-line patterns such as:
+- `group`
+- `localgroup`
+- `/domain`
+- `/all_trusts`
+- `/trusted_domains`
+- `/user` :contentReference[oaicite:7]{index=7}
 
-Attackers use group and trust discovery to:
-- identify privileged groups
-- understand domain relationships
-- map administrative boundaries
-- identify paths for lateral movement
-- identify high-value identity targets
-
-This type of activity is especially relevant in enterprise and domain environments.
-
-## Alert Logic Summary
-
-The rule is intended to identify execution of commands such as:
-- `net group`
-- `net group /domain`
-- `nltest`
-- trust-discovery-related commands
-- similar domain-recon patterns
+## Likely ATT&CK Mapping
+- **T1069** – Permission Groups Discovery
+- **T1482** – Domain Trust Discovery
+- **T1087** – Account Discovery
 
 ## Initial Triage Questions
+1. Which built-in tool was used?
+2. Was the command targeting group membership, trust relationships, or account context?
+3. Is the user expected to perform domain reconnaissance?
+4. Did the activity occur on an admin workstation, jump box, or user endpoint?
+5. Was the activity followed by remote execution or credential access?
+6. Is the command part of a helpdesk or audit workflow?
+7. Are there multiple discovery tools being used together?
 
-- Was the command focused on local groups, domain groups, or trust relationships?
-- Is the user expected to perform domain administration?
-- Did the host also show other AD or account discovery activity?
-- Did the same session include remote admin or credential access behavior?
-- Was the activity interactive or launched by a script/tool?
+## Key Fields To Review
+- `Timestamp`
+- `DeviceName`
+- `AccountName`
+- `FileName`
+- `ProcessCommandLine`
+- `InitiatingProcessFileName`
+- `InitiatingProcessCommandLine`
+- `ReportId`
 
 ## Investigation Steps
 
-1. Review the full command line.
-2. Identify whether the target was:
-   - domain groups
-   - admin groups
-   - trust relationships
-   - domain metadata
-3. Review the executing account and host.
-4. Determine whether the activity aligns with normal IT/admin duties.
-5. Review nearby activity for:
-   - `net user`
-   - `whoami /groups`
-   - PowerShell AD enumeration
-   - `dsquery`
-   - `nltest /domain_trusts`
-6. Check for follow-on signs of:
-   - privileged access attempts
-   - lateral movement
-   - share enumeration
-   - service or task creation
+### 1. Identify the discovery objective
+- Review the command line and determine whether the user was enumerating:
+  - domain groups
+  - local groups
+  - domain membership
+  - trust relationships
+  - current user identity or privileges
 
-## Common False Positives
+### 2. Assess host and user context
+- Determine whether the host is:
+  - a helpdesk/admin system
+  - server
+  - standard user endpoint
+- Confirm whether the account normally performs administrative discovery.
 
-- domain administration
-- troubleshooting trust issues
-- identity engineering work
-- server onboarding / migration activity
-- approved security validation
+### 3. Look for multi-tool recon chains
+- Check whether the same device or account also used:
+  - `whoami`
+  - `nltest`
+  - `dsquery`
+  - PowerShell LDAP queries
+  - `net user`
+  - DNS lookup tools
+- A burst of several discovery tools is more suspicious than a single command.
 
-## Escalation Guidance
+### 4. Review follow-on activity
+Look for:
+- failed logon bursts
+- LSASS dumping
+- token or privilege abuse
+- WMI or service-based lateral movement
+- remote scheduled task creation
+- archive staging or exfiltration
 
-Escalate when:
-- the user is not expected to perform domain discovery
-- the command targets privileged groups or trust relationships
-- the host is a normal workstation
-- the activity is part of a broader discovery burst
-- it is followed by authentication or movement attempts
+### 5. Validate administrative purpose
+- Confirm whether the command was tied to:
+  - support activity
+  - audits
+  - troubleshooting
+  - compliance checks
+- If not, treat the discovery behavior more seriously.
 
-## Recommended Enrichment
+## Common Benign Explanations
+- Domain administration and helpdesk support
+- Inventory or audit scripts :contentReference[oaicite:8]{index=8}
 
-- full command line
-- queried group / trust details
-- user role
-- host sensitivity
-- adjacent discovery commands
-- related authentication events
-- parent process / script context
+## Escalate When
+Escalate if:
+- multiple built-in reconnaissance tools are used together
+- the user is not expected to enumerate groups or trusts
+- the commands run from a non-admin workstation
+- there is nearby credential access or remote execution
+- the activity appears staged or bursty rather than isolated
 
-## ATT&CK Mapping
+## Suggested Response Actions
+- Preserve process and command-line evidence
+- Review the same user and host for additional discovery activity
+- Correlate with authentication, remote-execution, and persistence events
+- Search for similar group or trust discovery commands across the environment
+- Suppress only when tied to clearly documented admin workflows
 
-- Discovery
-- T1069 – Permission Group Discovery
-- T1482 – Domain Trust Discovery
-
-## Related Rule
-
-- `detections/sentinel/discovery/net-group-and-domain-trust-discovery.yml`
+## Analyst Notes
+Built-in discovery commands are common, so context matters. This analytic becomes much stronger when paired with LDAP enumeration, account discovery, failed logons, or lateral movement.
