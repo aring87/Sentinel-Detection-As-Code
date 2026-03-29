@@ -1,96 +1,107 @@
-# Triage Guide: Potential NTLM Enumeration via Failed Logons
+# Potential NTLM Enumeration via Failed Logons
 
-## Detection Title
-Potential NTLM Enumeration via Failed Logons
+## Goal
+Identify spikes in failed NTLM authentication from a single source that may indicate account enumeration, password spraying, or credential discovery activity.
 
-## Detection ID
-SENT-CRED-0001
+## Why This Alert Matters
+Repeated NTLM logon failures across many accounts can indicate an attacker testing usernames, validating account existence, or attempting low-and-slow spraying. Even when no successful logon occurs, this behavior may be an early sign of credential-access activity and can be valuable for detecting compromised systems or attacker reconnaissance.
 
-## Objective
-
-This detection identifies spikes in failed NTLM authentication attempts across multiple accounts, which may indicate account enumeration, password spraying, or broad authentication probing.
-
-## Why It Matters
-
-High-volume NTLM failures across many accounts can indicate:
-- password spraying
-- username discovery
-- reconnaissance prior to exploitation
-- compromised systems attempting wide authentication
-
-The combination of failure count and number of targeted accounts makes this more concerning than isolated bad-password events.
-
-## Alert Logic Summary
-
-The rule looks for:
-- `IdentityLogonEvents`
+## What the Detection Is Looking For
+This detection reviews `IdentityLogonEvents` for:
 - `Protocol =~ "NTLM"`
 - `ActionType =~ "LogonFailed"`
 
-It summarizes by:
+It then summarizes failures by:
 - `DeviceName`
 - `IPAddress`
-- time window
+- 15-minute time window
 
-and alerts when both:
-- total failures are high
-- distinct targeted accounts are high
+The rule triggers when:
+- failures are high
+- multiple accounts are targeted in the same window
+
+## Likely ATT&CK Mapping
+- **T1110.003** – Password Spraying
+- **T1087** – Account Discovery
 
 ## Initial Triage Questions
+1. Which source IP generated the failed NTLM attempts?
+2. How many accounts were targeted?
+3. Were the targeted accounts valid, privileged, stale, or service accounts?
+4. Did any successful logons follow the failures?
+5. Is the source system misconfigured, compromised, or performing expected authentication?
+6. Is the source internal, external, or tied to a known relay/proxy path?
+7. Are there related lateral movement, lockouts, or remote access attempts nearby?
 
-- What source IP or device generated the activity?
-- How many accounts were targeted?
-- Were any targeted accounts privileged?
-- Did any of the accounts later authenticate successfully?
-- Is the activity consistent with a broken service or broad password spray?
+## Key Fields To Review
+- `DeviceName`
+- `IPAddress`
+- `Timestamp`
+- `Failures`
+- `Accounts`
 
 ## Investigation Steps
 
-1. Review the source IP and associated host.
-2. Review the set of targeted accounts for pattern and importance.
-3. Determine whether the source is:
-   - a user workstation
-   - a server
-   - a scan/test system
-   - a misconfigured service host
-4. Check for follow-on successful logons.
-5. Review surrounding endpoint and identity activity on the source host.
-6. Determine whether the same source has generated similar failures before.
+### 1. Identify the source
+- Determine the host and IP responsible for the NTLM failures.
+- Confirm whether the source is:
+  - a workstation
+  - server
+  - scanner
+  - legacy device
+  - known misconfigured system
 
-## Common False Positives
+### 2. Review targeted accounts
+- Identify whether the targeted accounts are:
+  - normal users
+  - admins
+  - service accounts
+  - disabled or stale accounts
+- Look for patterns such as alphabetic enumeration, role-based targeting, or known high-value users.
 
-- stale credentials
-- misconfigured services
-- broken authentication loops
-- authorized password spray simulations
-- legacy systems retrying incorrect NTLM auth
+### 3. Check for successful follow-on access
+- Search for successful NTLM, Kerberos, or interactive logons after the failures.
+- Prioritize cases where one or more targeted accounts later succeeded.
 
-## Escalation Guidance
+### 4. Correlate with other behavior
+Look for:
+- account lockouts
+- remote SMB access
+- WMI or scheduled-task activity
+- service creation
+- LSASS dumping
+- browser credential access
+- outbound staging or exfiltration
 
-Escalate when:
-- many unique accounts are targeted quickly
-- successful auth follows the failures
-- privileged accounts are included
-- the source host shows other suspicious behavior
-- the pattern resembles broad probing rather than normal service failure
+### 5. Validate benign explanations
+- Determine whether the activity may reflect:
+  - stale credentials in a service
+  - legacy authentication loops
+  - password spray testing in an approved exercise
+  - misconfigured scripts or mapped drives
 
-## Recommended Enrichment
+## Common Benign Explanations
+- Misconfigured services or stale credentials
+- Approved password spray simulations
+- Legacy systems repeatedly attempting invalid NTLM auth
+- Broken scripts or scheduled tasks using outdated passwords
 
-- list of targeted accounts
-- source IP history
-- successful auth after failures
-- host inventory / ownership
-- related identity alerts
-- endpoint telemetry from the source device
-- prior behavior from the same source
+## Escalate When
+Escalate if:
+- the number of targeted accounts is high
+- the source system is not expected to authenticate broadly
+- the same source later shows successful authentication
+- the failures target privileged or sensitive accounts
+- the host also shows lateral movement or credential-access behavior
+- the source appears compromised or attacker-controlled
 
-## ATT&CK Mapping
+## Suggested Response Actions
+- Preserve authentication logs and correlated endpoint events
+- Investigate and contain the source system if suspicious
+- Review password hygiene and lockout activity for targeted users
+- Search for successful follow-on logons from the same IP or host
+- Reset credentials or disable compromised accounts if needed
+- Tune or suppress only after clearly confirming benign misconfiguration
 
-- Credential Access
-- Reconnaissance
-- T1110.003 – Brute Force: Password Spraying
-- T1087 – Account Discovery
-
-## Related Rule
-
-- `detections/sentinel/credential-access/potential-ntlm-enumeration-via-failed-logons.yml`
+## Analyst Notes
+This is a strong early-warning detection for credential-access activity. Not every event is malicious, but high-volume failed NTLM activity across many users should be investigated carefully, especially when followed by a successful sign-in or lateral movement.
