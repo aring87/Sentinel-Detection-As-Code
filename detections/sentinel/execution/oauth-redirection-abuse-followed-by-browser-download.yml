@@ -1,5 +1,5 @@
 title: OAuth Redirection Abuse Followed by Suspicious Execution
-id: SENT-EXEC-0006
+id: SENT-EXEC-0010
 status: experimental
 description: Detects suspicious OAuth authorization URL click activity followed closely by browser-driven download or suspicious endpoint execution.
 author: Adam Ring

@@ -1,5 +1,5 @@
-title: Paste-and-Run Shell or Script Execution from Explorer
-id: SENT-EXEC-0005
+title: mshta launching script or powershell
+id: SENT-EXEC-0006
 status: testing
 description: Detects likely copy-paste execution behavior launched from Explorer or shell context into PowerShell, CMD, or common script interpreters.
 author: Adam Ring

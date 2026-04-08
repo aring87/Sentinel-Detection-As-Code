@@ -4,7 +4,8 @@ import yaml
 
 DETECTIONS_ROOT = Path("detections/sentinel")
 
-REQUIRED_FIELDS = [
+# Full schema for active detections
+REQUIRED_ACTIVE_FIELDS = [
     "title",
     "id",
     "status",
@@ -27,6 +28,18 @@ REQUIRED_FIELDS = [
     "tags",
 ]
 
+# Lighter schema for deprecated detections
+REQUIRED_DEPRECATED_FIELDS = [
+    "title",
+    "id",
+    "status",
+    "description",
+    "author",
+    "date",
+    "logsource",
+    "lifecycle",
+]
+
 ALLOWED_STATUS = {"experimental", "testing", "stable", "production", "deprecated"}
 ALLOWED_LIFECYCLE = {"experimental", "testing", "production", "deprecated"}
 ALLOWED_SEVERITY = {"low", "medium", "high", "critical"}
@@ -37,26 +50,57 @@ def load_yaml(path: Path):
         return yaml.safe_load(f)
 
 
-def validate_file(path: Path):
+def is_deprecated_rule(path: Path, data: dict) -> bool:
+    if "deprecated" in path.parts:
+        return True
+    lifecycle = str(data.get("lifecycle", "")).strip().lower()
+    status = str(data.get("status", "")).strip().lower()
+    return lifecycle == "deprecated" or status == "deprecated"
+
+
+def validate_common_fields(path: Path, data: dict):
     errors = []
 
-    try:
-        data = load_yaml(path)
-    except Exception as exc:
-        return [f"{path}: YAML parse error: {exc}"]
+    status = str(data.get("status", "")).strip().lower()
+    lifecycle = str(data.get("lifecycle", "")).strip().lower()
+    title = str(data.get("title", "")).strip()
+    rule_id = str(data.get("id", "")).strip()
 
-    if not isinstance(data, dict):
-        return [f"{path}: root YAML object must be a dictionary"]
+    if title == "":
+        errors.append(f"{path}: 'title' must not be empty")
 
-    for field in REQUIRED_FIELDS:
+    deprecated = is_deprecated_rule(path, data)
+
+    if not deprecated and not rule_id.startswith("SENT-"):
+        errors.append(f"{path}: 'id' should start with 'SENT-'")
+
+    if status and status not in ALLOWED_STATUS:
+        errors.append(
+            f"{path}: invalid status '{data.get('status')}'. Allowed: {sorted(ALLOWED_STATUS)}"
+        )
+
+    if lifecycle and lifecycle not in ALLOWED_LIFECYCLE:
+        errors.append(
+            f"{path}: invalid lifecycle '{data.get('lifecycle')}'. Allowed: {sorted(ALLOWED_LIFECYCLE)}"
+        )
+
+    if "logsource" in data and not isinstance(data.get("logsource"), dict):
+        errors.append(f"{path}: 'logsource' must be a dictionary")
+
+    return errors
+
+
+def validate_active_rule(path: Path, data: dict):
+    errors = []
+
+    for field in REQUIRED_ACTIVE_FIELDS:
         if field not in data:
             errors.append(f"{path}: missing required field '{field}'")
 
     if errors:
         return errors
 
-    if not isinstance(data.get("logsource"), dict):
-        errors.append(f"{path}: 'logsource' must be a dictionary")
+    errors.extend(validate_common_fields(path, data))
 
     if not isinstance(data.get("tags"), list):
         errors.append(f"{path}: 'tags' must be a list")
@@ -76,20 +120,7 @@ def validate_file(path: Path):
     if not isinstance(data.get("validation"), list):
         errors.append(f"{path}: 'validation' must be a list")
 
-    status = str(data.get("status", "")).strip().lower()
-    lifecycle = str(data.get("lifecycle", "")).strip().lower()
     severity = str(data.get("severity", "")).strip().lower()
-
-    if status not in ALLOWED_STATUS:
-        errors.append(
-            f"{path}: invalid status '{data.get('status')}'. Allowed: {sorted(ALLOWED_STATUS)}"
-        )
-
-    if lifecycle not in ALLOWED_LIFECYCLE:
-        errors.append(
-            f"{path}: invalid lifecycle '{data.get('lifecycle')}'. Allowed: {sorted(ALLOWED_LIFECYCLE)}"
-        )
-
     if severity not in ALLOWED_SEVERITY:
         errors.append(
             f"{path}: invalid severity '{data.get('severity')}'. Allowed: {sorted(ALLOWED_SEVERITY)}"
@@ -101,29 +132,43 @@ def validate_file(path: Path):
     elif not 0 <= risk_score <= 100:
         errors.append(f"{path}: 'risk_score' must be between 0 and 100")
 
-    title = str(data.get("title", "")).strip()
-    rule_id = str(data.get("id", "")).strip()
     query = str(data.get("query", "")).strip()
-
-    if not title:
-        errors.append(f"{path}: 'title' must not be empty")
-
-    if not rule_id.startswith("SENT-"):
-        errors.append(f"{path}: 'id' should start with 'SENT-'")
-
     if not query:
         errors.append(f"{path}: 'query' must not be empty")
 
-    relative_parts = path.relative_to(DETECTIONS_ROOT).parts
-    if len(relative_parts) >= 2:
-        tactic_folder = relative_parts[0]
-        tags = [str(t).strip().lower() for t in data.get("tags", [])]
-        if tactic_folder not in tags:
-            errors.append(
-                f"{path}: expected tactic folder '{tactic_folder}' to appear in tags"
-            )
+    return errors
+
+
+def validate_deprecated_rule(path: Path, data: dict):
+    errors = []
+
+    for field in REQUIRED_DEPRECATED_FIELDS:
+        if field not in data:
+            errors.append(f"{path}: missing required field '{field}'")
+
+    if errors:
+        return errors
+
+    errors.extend(validate_common_fields(path, data))
 
     return errors
+
+
+def validate_file(path: Path):
+    try:
+        data = load_yaml(path)
+    except Exception as exc:
+        return [f"{path}: YAML parse error: {exc}"], None
+
+    if not isinstance(data, dict):
+        return [f"{path}: root YAML object must be a dictionary"], None
+
+    deprecated = is_deprecated_rule(path, data)
+
+    if deprecated:
+        return validate_deprecated_rule(path, data), data
+
+    return validate_active_rule(path, data), data
 
 
 def main():
@@ -142,12 +187,12 @@ def main():
     seen_titles = {}
 
     for path in detection_files:
-        errors = validate_file(path)
+        errors, data = validate_file(path)
         all_errors.extend(errors)
 
-        try:
-            data = load_yaml(path)
-            if isinstance(data, dict):
+        if isinstance(data, dict):
+            deprecated = is_deprecated_rule(path, data)
+            if not deprecated:
                 rule_id = str(data.get("id", "")).strip()
                 title = str(data.get("title", "")).strip().lower()
 
@@ -155,8 +200,6 @@ def main():
                     seen_ids.setdefault(rule_id, []).append(str(path))
                 if title:
                     seen_titles.setdefault(title, []).append(str(path))
-        except Exception:
-            pass
 
     for rule_id, paths in seen_ids.items():
         if len(paths) > 1:

@@ -1,25 +1,37 @@
 title: Disable Script Block Logging
-id: dodea-sig-028-disable-script-block-logging
-status: experimental
-description: Detects registry modifications that disable PowerShell script block logging.
+id: SENT-DE-0001
+status: testing
+description: Detects registry modifications that disable PowerShell Script Block Logging.
 author: Adam Ring
-date: '2025-08-07'
-tags:
-- attack.defense_evasion
-- attack.t1562.002
-- ckc.installation
+date: '2026-04-08'
+platform: windows
+query_language: kql
 logsource:
   product: windows
   category: registry_event
-detection:
-  selection:
-    query: DeviceRegistryEvents | where RegistryKey has 'ScriptBlockLogging' and RegistryValueData =~ '0'
-  condition: selection
-falsepositives:
-- None known
-level: medium
+query: |
+  DeviceRegistryEvents
+  | where RegistryKey has "ScriptBlockLogging"
+  | where RegistryValueData =~ "0"
+severity: medium
+risk_score: 50
 tactics:
-- defense_evasion
+  - defense_evasion
 techniques:
-- t1562
-lifecycle: experimental
+  - t1562
+falsepositives:
+  - Authorized administrative changes to PowerShell logging settings
+triage:
+  - Confirm whether the registry change was approved by administrators
+  - Review the initiating user account, host, and process context
+  - Check for nearby PowerShell, LOLBin, or defense evasion activity on the same device
+validation:
+  - Generate a test registry modification in a lab that disables Script Block Logging
+  - Confirm the query returns the expected DeviceRegistryEvents record
+lifecycle: testing
+owner: detection-engineering
+tags:
+  - attack.defense_evasion
+  - attack.t1562.002
+  - powershell
+  - logging
