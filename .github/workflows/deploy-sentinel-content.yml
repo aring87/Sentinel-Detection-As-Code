@@ -2,12 +2,46 @@ name: Deploy Sentinel Content
 
 on:
   workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "Choose where to deploy"
+        required: true
+        default: "lab"
+        type: choice
+        options:
+          - lab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-sentinel-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: lab
+
     steps:
-      - name: Checkout
+      - name: Check out repository
         uses: actions/checkout@v4
-      - name: Placeholder deployment step
-        run: echo "Add Sentinel deployment workflow here"
+
+      - name: Show deployment target
+        run: |
+          echo "Starting practice deployment"
+          echo "Target environment: ${{ github.event.inputs.target_environment }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch/Ref: ${{ github.ref }}"
+
+      - name: Count detections
+        run: |
+          echo "Detection file count:"
+          find detections -type f \( -name "*.yml" -o -name "*.yaml" \) | wc -l
+
+      - name: Simulate Sentinel deployment
+        run: |
+          mkdir -p build/deploy-preview
+          cp -r detections build/deploy-preview/
+          echo "Practice deployment complete"
+          echo "In a real pipeline, this step would call a Sentinel deployment script or API."
