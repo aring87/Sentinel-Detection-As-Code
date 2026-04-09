@@ -7,19 +7,19 @@ A centralized repository for building, governing, validating, and operationalizi
 [![Process](https://img.shields.io/badge/Process-Workflows-orange)](docs/02_process/)
 [![Visuals](https://img.shields.io/badge/Visuals-Reports%20%26%20Diagrams-teal)](docs/03_visuals/)
 [![Reporting](https://img.shields.io/badge/Reporting-Metrics%20%26%20Reviews-green)](docs/04_reporting/)
-[![Detections](https://img.shields.io/badge/Detections-Sentinel-red)](detections/sentinel/)
+[![Detections](https://img.shields.io/badge/Detections-Sentinel%20%26%20Splunk-red)](detections/)
 [![Governance](https://img.shields.io/badge/Governance-Standards-darkgreen)](governance/)
 [![Triage Guides](https://img.shields.io/badge/Triage-Guides-darkblue)](content/triage-guides/)
 
-This repository serves as a one-stop location for:
+This repository serves as a central hub for:
 
 - detection engineering strategy and program documentation
-- detection-as-code content for Microsoft Sentinel
-- validation, tuning, and lifecycle governance
+- detection-as-code content for Microsoft Sentinel and Splunk
+- validation, tuning, lifecycle governance, and quality control
 - ATT&CK and Cyber Kill Chain coverage tracking
 - analyst triage guidance and operational support
-- executive reporting, planning, and maturity development
-- future multi-platform expansion, including Splunk
+- executive reporting, planning, and program maturity development
+- multi-platform detection engineering workflows
 
 ---
 
@@ -27,13 +27,13 @@ This repository serves as a one-stop location for:
 
 Detection engineering is more than writing alert logic.
 
-A mature program requires structure, repeatable workflows, quality standards, validation, operational triage support, and reporting that connects technical content to program outcomes. This repository is designed to support that full lifecycle, from idea to validated analytic to operational use.
+A mature program requires structure, repeatable workflows, validation standards, triage guidance, operational feedback loops, and reporting that connects technical work to measurable outcomes. This repository is designed to support that full lifecycle, from detection idea to validated analytic to operational use.
 
 ---
 
 ## Current Focus
 
-This repository is currently centered on **Microsoft Sentinel detection engineering** and is being actively refined into a more governed, scalable detection engineering program.
+This repository is centered on building a more governed, scalable, and operationally useful detection engineering program across **Microsoft Sentinel** and **Splunk**.
 
 Current priorities include:
 
@@ -42,21 +42,28 @@ Current priorities include:
 - reducing duplicate and overlapping analytics
 - strengthening analyst triage guidance
 - improving ATT&CK alignment and lifecycle discipline
-- organizing content for long-term maintainability
+- expanding validation and automation workflows
+- improving long-term maintainability across platforms
 
 Planned future growth includes:
 
-- expanded automation and validation workflows
-- stronger deployment and reporting pipelines
-- additional platform support such as Splunk
-- shared governance and reporting across security platforms
+- stronger packaging and deployment workflows
+- expanded reporting and quality metrics
+- more mature CI/CD validation gates
+- continued Splunk tuning for production-ready content
+- shared governance across additional detection platforms
 
 ---
 
 ## What This Repository Contains
 
 ### Detection Content
-Detection content is organized as code and grouped by tactic under `detections/sentinel/`.
+Detection content is managed as code and currently organized under:
+
+- `detections/sentinel/`
+- `detections/splunk/`
+
+Content is grouped by tactic and lifecycle state to support maintainability, validation, and operational alignment.
 
 Current tactic areas include:
 
@@ -81,10 +88,20 @@ Current tactic areas include:
 Analyst-facing triage content is maintained under `content/triage-guides/` and is intended to support consistent investigation, escalation, and response.
 
 ### Governance
-Governance content defines the standards used to maintain quality and consistency across the repository, including naming, severity, lifecycle, tagging, and rule quality expectations.
+Governance content defines the standards used to maintain quality and consistency across the repository, including naming, severity, lifecycle, tagging, metadata, and rule quality expectations.
 
 ### Program Documentation
 The `docs/` structure supports executive communication, strategy, process, reporting, and visual program artifacts.
+
+### Validation and CI/CD
+This repository includes validation workflows and practice CI/CD support for detection content. Platform-specific validation scripts are used to check Sentinel and Splunk detections for schema consistency, duplicate metadata, required fields, and active vs deprecated rule handling.
+
+Current validation components include:
+
+- `tests/validation/validate_detections.py`
+- `tests/validation/validate_splunk_detections.py`
+
+This helps support a Detection-as-Code workflow in which content can be validated before packaging or promotion.
 
 ---
 
@@ -129,7 +146,7 @@ Use these resources for investigation, escalation, and operational alignment:
 
 ## Detection Content Cleanup and Standardization
 
-The Sentinel detection catalog has undergone a broad cleanup and normalization effort to improve quality, consistency, and maintainability.
+The detection catalog has undergone a broad cleanup and normalization effort to improve quality, consistency, and maintainability across both active and legacy content.
 
 This work included:
 
@@ -139,25 +156,10 @@ This work included:
 - improving weak or overly broad logic
 - converting older or package-style rules into a more consistent repository schema
 - aligning detections with stronger triage guidance
-- separating foundational broad analytics from narrower companion detections
+- separating broad foundational analytics from narrower companion detections
 - retaining stronger modern rules while retiring or demoting weaker legacy duplicates
 
-This effort covered content across all major Sentinel tactic folders, including:
-
-- collection
-- command-and-control
-- credential-access
-- defense-evasion
-- discovery
-- execution
-- exfiltration
-- impact
-- initial-access
-- lateral-movement
-- persistence
-- privilege-escalation
-- reconnaissance
-- resource-development
+This effort covered content across major tactic folders and now supports both Sentinel and Splunk detection tracks.
 
 ### Resulting Improvements
 
@@ -170,6 +172,7 @@ Key outcomes of this cleanup include:
 - stronger triage and validation sections
 - clearer lifecycle progression from experimental to production
 - better separation between active, specialized, and deprecated content
+- improved cross-platform consistency between Sentinel and Splunk content
 
 ---
 
@@ -177,7 +180,7 @@ Key outcomes of this cleanup include:
 
 Triage content has also been reviewed and expanded to better support analyst workflows.
 
-Updated guides are being rewritten into a fuller analyst-playbook style that emphasizes:
+Updated guides are being rewritten into a more complete analyst-playbook style that emphasizes:
 
 - why the alert matters
 - what the detection is looking for
@@ -211,10 +214,32 @@ See:
 
 ---
 
+## Detection-as-Code and Validation
+
+This repository now reflects a more practical Detection-as-Code workflow.
+
+Validation logic has been added for both Sentinel and Splunk content so detections can be checked before promotion. Current validation covers:
+
+- required schema fields
+- valid metadata values
+- duplicate rule IDs
+- duplicate rule titles
+- active vs deprecated rule handling
+- metadata quality issues such as incomplete or inconsistent fields
+
+Current validation status:
+
+- Sentinel detections validate successfully
+- Splunk detections validate successfully
+
+This provides a stronger foundation for future packaging, promotion, and deployment workflows.
+
+---
+
 ## Repository Map
 
 - `docs/` — executive artifacts, strategy, process, visuals, and reporting
-- `detections/` — detection content managed as code
+- `detections/` — Sentinel and Splunk detection content managed as code
 - `content/` — templates, triage guides, and reusable operational content
 - `governance/` — naming, severity, lifecycle, tagging, and quality standards
 - `coverage/` — ATT&CK and Cyber Kill Chain coverage tracking
@@ -237,12 +262,12 @@ Core program artifacts are located in [`docs/executive/`](docs/executive/):
 
 ## Contribution Model
 
-All content should be version controlled, reviewed, and validated before promotion.
+All content should be version controlled, reviewed, validated, and governed before promotion.
 
 Recommended flow:
 
 1. Submit a request or change
-2. Review metadata, mapping, and quality
+2. Review metadata, mapping, and content quality
 3. Validate logic and operational usefulness
 4. Document tuning or triage considerations
 5. Merge through pull request review
@@ -264,8 +289,9 @@ The long-term goal of this repository is to support a mature, scalable detection
 - operationally useful triage content
 - measurable coverage tracking
 - stronger validation and tuning discipline
+- multi-platform detection support
 - executive-ready reporting
-- reusable standards that can extend beyond Sentinel into additional platforms
+- reusable standards that can extend across security platforms
 
 ---
 
