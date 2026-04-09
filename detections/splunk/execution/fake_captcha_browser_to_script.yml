@@ -1,0 +1,68 @@
+title: Suspicious Fake CAPTCHA Browser-to-Script Execution Chain
+id: SPLK-EXEC-0004
+source_id: SENT-EXEC-0004
+status: production
+description: Detects likely fake CAPTCHA or browser-lure activity followed by script interpreter or LOLBin execution from a browser context.
+author: Adam Ring
+date: '2026-03-25'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where InitiatingProcessFileName IN ("BrowserProcs")
+
+  | where FileName IN ("ChildProcs")
+
+  | where like(lower(ProcessCommandLine), "%frombase64string%") OR like(lower(ProcessCommandLine), "%invoke-expression%") OR like(lower(ProcessCommandLine), "% iwr %") OR like(lower(ProcessCommandLine), "% irm %") OR like(lower(ProcessCommandLine), "%curl %") OR like(lower(ProcessCommandLine), "%wget %") OR like(lower(ProcessCommandLine), "%bitsadmin%") OR like(lower(ProcessCommandLine), "%javascript:%") OR like(lower(ProcessCommandLine), "%http://%") OR like(lower(ProcessCommandLine), "%https://%")
+
+  | table Timestamp, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, SHA1, SHA256, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 82
+tactics:
+- Initial Access
+- Execution
+techniques:
+- T1204.001
+- T1059.001
+- T1059.003
+kill_chain_phases:
+- Delivery
+- Execution
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Administrator testing launched from a browser
+- Internal portals that intentionally launch local tools
+- Developer workflows that open scripts from browser-delivered content
+triage:
+- Review the browser process, URL context, and user activity immediately before execution
+- Check whether the command line contains download, decode, or remote execution indicators
+- Determine whether the payload executed from a user-writable location or led to persistence or network egress
+validation:
+- Reproduce a benign browser-to-script workflow in a lab and compare with suspicious command-line patterns
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.initial-access
+- attack.execution
+- attack.t1204.001
+- attack.t1059.001
+- attack.t1059.003
+- sentinel
+- execution
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

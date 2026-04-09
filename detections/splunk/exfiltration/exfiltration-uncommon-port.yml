@@ -1,0 +1,62 @@
+title: Exfiltration Over Uncommon Port
+id: SPLK-EXFIL-0007
+source_id: SENT-EXFIL-0007
+status: production
+description: Detects high-volume outbound data transfer to external destinations over uncommon ports, which may indicate nonstandard exfiltration channels.
+author: Adam Ring
+date: '2026-03-26'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: network
+source_table: DeviceNetworkEvents
+search: '`microsoft_defender_device_network_events`
+
+  | where NOT (cidrmatch("10.0.0.0/8", RemoteIP) OR cidrmatch("172.16.0.0/12", RemoteIP) OR cidrmatch("192.168.0.0/16", RemoteIP) OR cidrmatch("127.0.0.0/8", RemoteIP) OR cidrmatch("169.254.0.0/16", RemoteIP))
+
+  | where RemotePort !in (80, 443, 22, 53, 25, 587, 3389)
+
+  | bin Timestamp span=30m | stats SentBytes=sum(tolong(SentBytes)), count as ConnCount, values(RemoteUrl) as URLs by DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteIP, RemotePort, Timestamp
+
+  | where SentBytes > 10000000'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 76
+tactics:
+- Exfiltration
+techniques:
+- T1048.003
+kill_chain_phases:
+- Exfiltration
+data_sources:
+- DeviceNetworkEvents
+falsepositives:
+- Approved applications using nonstandard transfer ports
+- Backup or replication tools
+- Specialized vendor or engineering software
+triage:
+- Review the process, port, and destination involved in the transfer
+- Determine whether the port is expected for the application or host
+- Check whether collection, archive creation, or staging preceded the outbound traffic
+- Inspect for recurring beaconing or additional exfiltration destinations
+validation:
+- Generate benign outbound traffic over a nonstandard port in a lab and tune thresholds
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.exfiltration
+- attack.t1048.003
+- sentinel
+- exfiltration
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

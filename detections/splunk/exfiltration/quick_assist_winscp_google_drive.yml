@@ -1,0 +1,64 @@
+title: Quick Assist Followed by WinSCP or Google Drive Exfiltration Activity
+id: SPLK-EXFIL-0009
+source_id: SENT-EXFIL-0009
+status: production
+description: Detects a likely vishing-driven intrusion chain where Microsoft Quick Assist is followed by WinSCP execution or Google Drive access from the same device shortly after remote access.
+author: Adam Ring
+date: '2026-03-25'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation_and_network
+source_table: DeviceProcessEvents
+search: "`microsoft_defender_device_process_events`\n| where FileName IN (\"QuickAssist.exe\",\"QuickAssistLauncher.exe\")\n| rename Timestamp as QAStart AccountName as QAAccount ProcessCommandLine as QACommand\n| table QAStart DeviceId DeviceName QAAccount QACommand\n| join type=left DeviceId [\n    `microsoft_defender_device_process_events`\n    | where FileName IN (\"WinSCP.exe\",\"winscp.com\")\n    | rename Timestamp as FollowOnTime FileName as FollowOnProcess ProcessCommandLine as Evidence\n    | table FollowOnTime DeviceId FollowOnProcess Evidence\n]\n| eval __window_end=relative_time(QAStart, \"+60m\")\n| where isnotnull(FollowOnTime) AND FollowOnTime>=QAStart AND FollowOnTime<=__window_end\n| eval FollowOnType=\"WinSCP\"\n| fields - __window_end\n| rename QAStart as Timestamp\n| table Timestamp DeviceName QAAccount QACommand FollowOnTime FollowOnType FollowOnProcess Evidence"
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 88
+tactics:
+- Initial Access
+- Exfiltration
+techniques:
+- T1219
+- T1105
+- T1567.002
+kill_chain_phases:
+- Delivery
+- Exfiltration
+data_sources:
+- DeviceProcessEvents
+- DeviceNetworkEvents
+falsepositives:
+- Legitimate remote support followed by approved file transfer
+- Help desk activity
+- Sanctioned admin workflows using Quick Assist and cloud storage
+triage:
+- Confirm whether the Quick Assist session was approved and user-initiated
+- Review what was transferred via WinSCP or whether browser/cloud activity suggests upload to Google Drive
+- Check for follow-on collection, archive creation, credential theft, or persistence
+- Correlate with social-engineering indicators, phone support scams, or suspicious browser sessions
+validation:
+- Simulate a benign Quick Assist session followed by approved file transfer and compare timing and process context
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.initial-access
+- attack.exfiltration
+- attack.t1219
+- attack.t1105
+- attack.t1567.002
+- quickassist
+- winscp
+- google-drive
+- sentinel
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

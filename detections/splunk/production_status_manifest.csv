@@ -1,0 +1,76 @@
+path,id,source_id,title,status,severity,source_table
+browser/browser-extension-install-from-temp-or-user-profile.yml,SPLK-BROW-0001,SENT-BROW-0001,Browser Extension Files Created by Non-Browser Process,production,medium,DeviceFileEvents
+collection/Clipboard-Data-Collection.yml,SPLK-COLL-0001,SENT-COLL-0001,Suspicious Clipboard Read or Clipboard Utility Execution,production,medium,DeviceProcessEvents
+collection/data-from-local-system.yml,SPLK-COLL-0005,SENT-COLL-0005,Suspicious Access to Sensitive Local User Documents,production,medium,DeviceFileEvents
+collection/graph-mail-access-burst.yml,SPLK-COLL-0004,SENT-COLL-0004,Microsoft Graph Mail Access Burst,production,medium,CloudAppEvents
+collection/mass-file-enumeration-in-user-data-paths.yml,SPLK-COLL-0002,SENT-COLL-0002,Mass File Access in User Data Paths by Uncommon Process,production,medium,DeviceFileEvents
+collection/screen-capture-utility-execution.yml,SPLK-COLL-0003,SENT-COLL-0003,Suspicious Screen Capture Utility Execution,production,medium,DeviceProcessEvents
+command-and-control/powershell-or-lolbin-external-network-traffic.yml,SPLK-C2-0002,SENT-C2-0002,PowerShell or LOLBin External Network Traffic,production,high,DeviceNetworkEvents
+command-and-control/quick-assist-or-rmm-followed-by-script-execution.yml,SPLK-C2-0004,SENT-C2-0004,Quick Assist or RMM Followed by Script Execution,production,high,DeviceProcessEvents
+command-and-control/sharepoint-spinstall0-or-webshell-staging-access.yml,SPLK-C2-0005,SENT-C2-0005,SharePoint SPInstall0 or Suspicious Setup Artifact Access,production,high,OfficeActivity
+command-and-control/suspicious-web-download-via-certutil-or-bitsadmin.yml,SPLK-C2-0003,SENT-C2-0003,Suspicious Web Download via Certutil or Bitsadmin,production,high,DeviceProcessEvents
+credential-access/device-code-phishing-followed-by-graph-mail-access.yml,SPLK-CRED-0004,SENT-CRED-0004,Device Code Phishing Followed by Graph Mail Access,production,high,SigninLogs
+credential-access/potential-lsass-memory-dump.yml,SPLK-CRED-0002,SENT-CRED-0002,Potential LSASS Memory Dump,production,high,DeviceProcessEvents
+credential-access/potential-ntlm-enumeration-via-failed-logons.yml,SPLK-CRED-0001,SENT-CRED-0001,Potential NTLM Enumeration via Failed Logons,production,high,IdentityLogonEvents
+credential-access/suspicious-browser-credential-store-access.yml,SPLK-CRED-0003,SENT-CRED-0003,Suspicious Browser Credential Store Access,production,medium,DeviceFileEvents
+credential-access/vmware_vmdk_ntds_theft.yml,SPLK-CRED-0006,SENT-CRED-0006,VMware vCenter VMDK Attach-Detach Activity Potentially Related to NTDS Theft,production,high,VMware_CL
+defense-evasion/clear-windows-event-logs.yml,SPLK-DEFEV-0003,SENT-DEFEV-0003,Clear Windows Event Logs,production,high,DeviceProcessEvents
+defense-evasion/disable-script-block-logging.yml,SPLK-DE-0001,SENT-DE-0001,Disable Script Block Logging,production,medium,DeviceRegistryEvents
+defense-evasion/powershell-script-block-logging-disabled.yml,SPLK-DEFEV-0001,SENT-DEFEV-0001,PowerShell Script Block Logging Disabled,production,high,DeviceRegistryEvents
+defense-evasion/security-tool-disable-attempt.yml,SPLK-DEFEV-0002,SENT-DEFEV-0002,Security Tool Disable Attempt,production,high,DeviceProcessEvents
+discovery/Net-User-Enumeration.yml,SPLK-DISC-0005,SENT-DISC-0005,Net User Enumeration,production,medium,DeviceProcessEvents
+discovery/dns-enumeration-via-command-line-tools.yml,SPLK-DISC-0004,SENT-DISC-0004,DNS Enumeration via Command-Line Tools,production,medium,DeviceProcessEvents
+discovery/ldap-enumeration-using-powershell.yml,SPLK-DISC-0003,SENT-DISC-0003,LDAP Enumeration Using PowerShell,production,medium,DeviceProcessEvents
+discovery/net-group-and-domain-trust-discovery.yml,SPLK-DISC-0001,SENT-DISC-0001,Net Group and Domain Trust Discovery,production,medium,DeviceProcessEvents
+discovery/system-and-network-configuration-discovery.yml,SPLK-DISC-0002,SENT-DISC-0002,System and Network Configuration Discovery,production,medium,DeviceProcessEvents
+execution/fake_captcha_browser_to_script.yml,SPLK-EXEC-0004,SENT-EXEC-0004,Suspicious Fake CAPTCHA Browser-to-Script Execution Chain,production,high,DeviceProcessEvents
+execution/malicious-and-paste-powershell-from-explorer.yml,SPLK-EXEC-0005,SENT-EXEC-0005,Paste-and-Run Shell or Script Execution from Explorer,production,high,DeviceProcessEvents
+execution/mshta-launching-script-or-powershell.yml,SPLK-EXEC-0006,SENT-EXEC-0006,mshta launching script or powershell,production,high,DeviceProcessEvents
+execution/oauth-redirection-abuse-followed-by-browser-download.yml,SPLK-EXEC-0010,SENT-EXEC-0010,OAuth Redirection Abuse Followed by Suspicious Execution,production,high,UrlClickEvents
+execution/powershell-encoded-command-execution.yml,SPLK-EXEC-0001,SENT-EXEC-0001,PowerShell Encoded Command Execution,production,high,DeviceProcessEvents
+execution/powershell-encoded-command-from-temp-folder.yml,SPLK-EXEC-0003,SENT-EXEC-0003,PowerShell Encoded Command from Temp or User-Writable Path,production,high,DeviceProcessEvents
+execution/suspicious-ai-cli-noninteractive-trust-all-tools.yml,SPLK-EXEC-0007,SENT-EXEC-0007,Suspicious AI CLI Noninteractive Trust-All-Tools Execution,production,medium,DeviceProcessEvents
+exfiltration/Onedrive-File-Exfil.yml,SPLK-EXFIL-0008,SENT-EXFIL-0008,OneDrive File Upload Activity,production,medium,CloudAppEvents
+exfiltration/archive-creation-followed-by-external-transfer.yml,SPLK-EXFIL-0002,SENT-EXFIL-0002,Archive Creation Followed by External Transfer,production,high,DeviceFileEvents
+exfiltration/azcopy-or-cloud-cli-bulk-export.yml,SPLK-EXFIL-0004,SENT-EXFIL-0004,AzCopy or Cloud CLI Bulk Export Activity,production,high,DeviceProcessEvents
+exfiltration/exfiltration-uncommon-port.yml,SPLK-EXFIL-0007,SENT-EXFIL-0007,Exfiltration Over Uncommon Port,production,high,DeviceNetworkEvents
+exfiltration/onedrive-or-cloud-storage-bulk-upload-spike.yml,SPLK-EXFIL-0003,SENT-EXFIL-0003,OneDrive or Cloud Storage Bulk Upload Spike,production,medium,CloudAppEvents
+exfiltration/powershell-email-exfiltration-with-attachments.yml,SPLK-EXFIL-0001,SENT-EXFIL-0001,PowerShell Email Exfiltration with Attachments,production,high,DeviceProcessEvents
+exfiltration/quick_assist_winscp_google_drive.yml,SPLK-EXFIL-0009,SENT-EXFIL-0009,Quick Assist Followed by WinSCP or Google Drive Exfiltration Activity,production,high,DeviceProcessEvents
+exfiltration/sharepoint-or-onedrive-bulk-download-by-newly-risky-user.yml,SPLK-EXFIL-0006,SENT-EXFIL-0006,SharePoint or OneDrive Bulk Download by Newly Risky User,production,high,SigninLogs
+impact/boot-configuration-or-recovery-tampering.yml,SPLK-IMPACT-0003,SENT-IMPACT-0003,Boot Configuration or Recovery Tampering,production,high,DeviceProcessEvents
+impact/mass-file-rename-or-encryption-burst.yml,SPLK-IMPACT-0002,SENT-IMPACT-0002,Mass File Rename or Encryption Burst,production,high,DeviceFileEvents
+impact/remote_smb_encryption.yml,SPLK-IMPACT-0005,SENT-IMPACT-0005,Potential Remote SMB Encryption From Single Source Host,production,high,SecurityEvent
+impact/volume-shadow-copy-deletion.yml,SPLK-IMPACT-0001,SENT-IMPACT-0001,Volume Shadow Copy Deletion,production,high,DeviceProcessEvents
+initial-access/device-code-sign-in-followed-by-device-registration.yml,SPLK-INIT-0004,SENT-INIT-0004,Device Code Sign-In Followed by Device Registration,production,high,SigninLogs
+initial-access/multiple-user-device-code-sign-ins.yml,SPLK-INIT-0001,SENT-INIT-0001,Multiple User Device Code Sign-Ins,production,high,SigninLogs
+initial-access/oauth-redirection-abuse-url-click.yml,SPLK-INIT-0005,SENT-INIT-0005,OAuth Redirection Abuse URL Click,production,high,UrlClickEvents
+initial-access/potential-spearphishing-attachment-execution.yml,SPLK-INIT-0003,SENT-INIT-0003,Potential Spearphishing Attachment Execution,production,high,DeviceProcessEvents
+initial-access/suspicious-external-remote-service-sign-in.yml,SPLK-INIT-0002,SENT-INIT-0002,Suspicious External Remote Service Sign-In,production,high,SigninLogs
+initial-access/teams-external-contact-followed-by-quick-assist.yml,SPLK-INIT-0006,SENT-INIT-0006,Teams External Contact Followed by Quick Assist,production,medium,OfficeActivity
+lateral-movement/remote-scheduled-task-creation.yml,SPLK-LAT-0002,SENT-LAT-0002,Remote Scheduled Task Creation,production,high,DeviceProcessEvents
+lateral-movement/remote-service-creation.yml,SPLK-LAT-0001,SENT-LAT-0001,Remote Service Creation,production,high,DeviceProcessEvents
+lateral-movement/wmi-remote-process-execution.yml,SPLK-LAT-0003,SENT-LAT-0003,WMI Remote Process Execution,production,high,DeviceProcessEvents
+persistence/cleanup-loader-scheduled-task-rundll32-dllregisterserver.yml,SPLK-PERS-0004,SENT-PERS-0004,CleanUpLoader Scheduled Task Rundll32 DLLRegisterServer,production,high,DeviceProcessEvents
+persistence/m365_inbox_rule_forward_delete.yml,SPLK-PERS-0009,SENT-PERS-0009,Suspicious Microsoft 365 Inbox Rule for Forwarding or Deletion,production,high,OfficeActivity
+persistence/nodejs-guid-installer-scheduled-task.yml,SPLK-PERS-0006,SENT-PERS-0006,Node.js Installer or GUID-Named App Followed by Scheduled Task Persistence,production,medium,DeviceProcessEvents
+persistence/random-appdata-roaming-dll-drop-followed-by-task.yml,SPLK-PERS-0005,SENT-PERS-0005,Random AppData Roaming DLL Drop Followed by Scheduled Task,production,high,DeviceFileEvents
+persistence/registry-run-key-modification.yml,SPLK-PERS-0001,SENT-PERS-0001,Registry Run Key Modification,production,high,DeviceRegistryEvents
+persistence/service-binary-path-hijack.yml,SPLK-PERS-0003,SENT-PERS-0003,Service Binary Path Hijack,production,high,DeviceProcessEvents
+persistence/suspicious-scheduled-task-creation.yml,SPLK-PERS-0002,SENT-PERS-0002,Suspicious Scheduled Task Creation,production,high,DeviceProcessEvents
+privilege-escalation/dll-injection.yml,SPLK-PRIVESC-0004,SENT-PRIVESC-0004,Potential DLL Injection Tooling or Command Artifacts,production,high,DeviceProcessEvents
+privilege-escalation/event-viewer-uac-bypass-registry-hijack.yml,SPLK-PRIVESC-0001,SENT-PRIVESC-0001,Event Viewer UAC Bypass Registry Hijack,production,high,DeviceRegistryEvents
+privilege-escalation/suspicious-service-creation-for-elevation.yml,SPLK-PRIVESC-0003,SENT-PRIVESC-0003,Suspicious Service Creation for Elevation,production,high,DeviceProcessEvents
+privilege-escalation/suspicious-token-manipulation-or-sedebug-use.yml,SPLK-PRIVESC-0002,SENT-PRIVESC-0002,Suspicious Token Manipulation or SeDebug Use,production,high,DeviceProcessEvents
+reconnaissance/External-Lookup-Tool-Usage.yml,SPLK-RECON-0003,SENT-RECON-0003,External Lookup Tool Usage,production,low,DeviceProcessEvents
+reconnaissance/external-network-scanner-execution.yml,SPLK-RECON-0001,SENT-RECON-0001,External Network Scanner Execution,production,medium,DeviceProcessEvents
+reconnaissance/whoami-and-net-enumeration-burst.yml,SPLK-RECON-0002,SENT-RECON-0002,Whoami and Net Enumeration Burst,production,medium,DeviceProcessEvents
+resource-development/bulk-mailbox-or-rule-creation.yml,SPLK-RESDEV-0002,SENT-RESDEV-0002,Bulk Mailbox or Inbox Rule Creation Activity,production,medium,OfficeActivity
+resource-development/suspicious-azure-ad-application-registration.yml,SPLK-RESDEV-0001,SENT-RESDEV-0001,Suspicious Azure AD Application Registration,production,high,AuditLogs
+resource-development/suspicious-trufflehog-secret-scanning.yml,SPLK-RESDEV-0005,SENT-RESDEV-0005,Suspicious TruffleHog Secret Scanning,production,medium,DeviceProcessEvents
+resource-development/user-click-spike-to-suspicious-domain.yml,SPLK-RESDEV-0003,SENT-RESDEV-0003,User Click Spike to Suspicious Domain,production,medium,UrlClickEvents
+exfiltration/cloud-storage-public-access-or-immutability-removal.yml,SPLK-EXFIL-0005,SENT-EXFIL-0005,Cloud Storage Public Access or Immutability Removal,testing,high,AzureActivity
+impact/cloud-backup-or-storage-mass-delete-burst.yml,SPLK-IMPACT-0004,SENT-IMPACT-0004,Cloud Backup or Storage Mass Delete Burst,testing,high,AzureActivity
+persistence/entra_control_plane_abuse.yml,SPLK-PERS-0008,SENT-PERS-0008,Suspicious Entra ID Control-Plane Changes by Nonstandard Actor,testing,high,AuditLogs
+resource-development/new-app-secret-added-then-service-principal-signin.yml,SPLK-RESDEV-0007,SENT-RESDEV-0007,New App Secret Added Then Service Principal Sign-In,testing,high,AuditLogs
+resource-development/sharepoint-third-party-integration-secret-access.yml,SPLK-RESDEV-0006,SENT-RESDEV-0006,SharePoint or SaaS Third-Party Integration Secret Access,testing,high,AuditLogs

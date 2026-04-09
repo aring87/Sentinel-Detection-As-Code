@@ -1,0 +1,65 @@
+title: Service Binary Path Hijack
+id: SPLK-PERS-0003
+source_id: SENT-PERS-0003
+status: production
+description: Detects suspicious service creation or configuration changes that set a service image path to uncommon or user-writable locations.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where FileName IN ("sc.exe", "powershell.exe", "pwsh.exe")
+
+  | where like(lower(ProcessCommandLine), "%create%") OR like(lower(ProcessCommandLine), "%config%") OR like(lower(ProcessCommandLine), "%new-service%") OR like(lower(ProcessCommandLine), "%set-service%")
+
+  | where like(lower(ProcessCommandLine), "%appdata%") OR like(lower(ProcessCommandLine), "%temp%") OR like(lower(ProcessCommandLine), "%programdata%") OR like(lower(ProcessCommandLine), "%users\\public%")
+
+  | table Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 75
+tactics:
+- Persistence
+- Privilege Escalation
+techniques:
+- T1543.003
+kill_chain_phases:
+- Persistence
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Approved service testing or troubleshooting
+- Internal application deployment to nonstandard paths
+- Rare packaging or development workflows
+triage:
+- Inspect the target service and binary path
+- Determine whether the path is user-writable, unsigned, or newly created
+- Check for recent file drops and service start activity
+- Validate whether the service account, name, and image path make sense for the host
+validation:
+- Create or reconfigure a lab service to point to a nonstandard path
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.persistence
+- attack.privilege-escalation
+- attack.t1543.003
+- service
+- sentinel
+- persistence
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

@@ -1,0 +1,65 @@
+title: PowerShell or LOLBin External Network Traffic
+id: SPLK-C2-0002
+source_id: SENT-C2-0002
+status: production
+description: Detects outbound network connections from PowerShell and common LOLBins to external destinations, which may indicate download, staging, or command-and-control activity.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: network
+source_table: DeviceNetworkEvents
+search: '`microsoft_defender_device_network_events`
+
+  | where InitiatingProcessFileName IN ("powershell.exe", "pwsh.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe", "certutil.exe", "wscript.exe", "cscript.exe")
+
+  | where NOT (cidrmatch("10.0.0.0/8", RemoteIP) OR cidrmatch("172.16.0.0/12", RemoteIP) OR cidrmatch("192.168.0.0/16", RemoteIP) OR cidrmatch("127.0.0.0/8", RemoteIP) OR cidrmatch("169.254.0.0/16", RemoteIP))
+
+  | where RemoteIP !in ("127.0.0.1")
+
+  | table Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteIP, RemotePort, RemoteUrl, Protocol, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 72
+tactics:
+- Command and Control
+- Execution
+techniques:
+- T1105
+- T1218
+kill_chain_phases:
+- Command and Control
+data_sources:
+- DeviceNetworkEvents
+falsepositives:
+- Approved automation retrieving external content
+- Security tools or admin scripts contacting public services
+- Legitimate certificate or content retrieval workflows
+triage:
+- Validate whether the process normally makes external connections
+- Review the associated command line, parent process, and execution path
+- Inspect for downloads, beacons, encoded commands, or execution from temp or user-writable paths
+validation:
+- Perform a benign external web request from PowerShell and compare against expected admin activity
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.command-and-control
+- attack.execution
+- sentinel
+- lolbin
+- powershell
+- command-and-control
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

@@ -1,0 +1,60 @@
+title: Volume Shadow Copy Deletion
+id: SPLK-IMPACT-0001
+source_id: SENT-IMPACT-0001
+status: production
+description: Detects deletion of shadow copies using built-in Windows utilities, a common ransomware precursor and anti-recovery action.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where FileName IN ("vssadmin.exe", "wmic.exe", "powershell.exe", "cmd.exe")
+
+  | where like(lower(ProcessCommandLine), "%delete shadows%") OR like(lower(ProcessCommandLine), "%shadowcopy delete%") OR like(lower(ProcessCommandLine), "%win32_shadowcopy%") OR like(lower(ProcessCommandLine), "%vssadmin delete shadows%") OR like(lower(ProcessCommandLine), "%get-wmiobject win32_shadowcopy%") OR like(lower(ProcessCommandLine), "%remove-wmiobject%")
+
+  | table Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 85
+tactics:
+- Impact
+techniques:
+- T1490
+kill_chain_phases:
+- Impact
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Approved backup maintenance or restore workflows
+- Lab validation or recovery testing
+- Rare administrative troubleshooting
+triage:
+- Validate whether the deletion was authorized
+- Check for concurrent encryption, log clearing, or boot-recovery tampering
+- Inspect the parent process, execution path, and user context
+- Determine whether the host recently showed archive creation, staging, or mass file changes
+validation:
+- Delete shadow copies on a lab machine or replay representative telemetry
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.impact
+- attack.t1490
+- sentinel
+- impact
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

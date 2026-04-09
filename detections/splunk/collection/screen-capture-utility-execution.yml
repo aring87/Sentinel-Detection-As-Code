@@ -1,0 +1,67 @@
+title: Suspicious Screen Capture Utility Execution
+id: SPLK-COLL-0003
+source_id: SENT-COLL-0003
+status: production
+description: Detects screen capture utilities or scripted screenshot behavior that may indicate collection of user session data.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where FileName IN ("psr.exe", "nircmd.exe", "snippingtool.exe", "snipaste.exe")
+
+  | eval SuspicionScore=0
+
+  | eval SuspicionScore=SuspicionScore + if(FileName IN ("nircmd.exe", "snipaste.exe"), 2, 0)
+
+  | eval SuspicionScore=SuspicionScore + if(like(lower(ProcessCommandLine), "%capturedesktop%") OR like(lower(ProcessCommandLine), "%saveimage%") OR like(lower(ProcessCommandLine), "%screenshot%"), 2, 0)
+
+  | eval SuspicionScore=SuspicionScore + if(InitiatingProcessFileName IN ("powershell.exe", "pwsh.exe", "cmd.exe", "wscript.exe", "cscript.exe", "mshta.exe"), 2, 0)
+
+  | where SuspicionScore >= 2
+
+  | table Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId, SuspicionScore'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: medium
+risk_score: 56
+tactics:
+- Collection
+techniques:
+- T1113
+kill_chain_phases:
+- Collection
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Legitimate user screenshots
+- Support, documentation, or training workflows
+- Approved remote support tooling capturing user screens
+triage:
+- Validate whether screenshot usage is expected for the user, host, and time window
+- Check whether image files were written to temp, downloads, desktop, or other staging locations
+- Review for nearby exfiltration, clipboard access, browser credential access, or archiving activity
+validation:
+- Launch benign screen capture utilities in a lab and compare against help desk and normal user behavior
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.collection
+- attack.t1113
+- sentinel
+- collection
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

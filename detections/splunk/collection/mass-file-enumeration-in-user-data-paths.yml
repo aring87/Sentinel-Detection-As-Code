@@ -1,0 +1,63 @@
+title: Mass File Access in User Data Paths by Uncommon Process
+id: SPLK-COLL-0002
+source_id: SENT-COLL-0002
+status: production
+description: Detects high-volume access to files in user data paths by uncommon processes, which can indicate collection or staging activity.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: file_event
+source_table: DeviceFileEvents
+search: '`microsoft_defender_device_file_events`
+
+  | where like(lower(FolderPath), "%\\users\\%") OR like(lower(FolderPath), "%\\desktop\\%") OR like(lower(FolderPath), "%\\documents\\%") OR like(lower(FolderPath), "%\\downloads\\%")
+
+  | where NOT lower(InitiatingProcessFileName) IN ("explorer.exe", "searchindexer.exe", "onedrive.exe", "msmpeng.exe", "svchost.exe")
+
+  | bin Timestamp span=15m | stats count as FileTouches, dc(FolderPath) as Paths, values(FolderPath) as SamplePaths by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, Timestamp
+
+  | where FileTouches >= 200 AND Paths >= 3'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: medium
+risk_score: 58
+tactics:
+- Collection
+techniques:
+- T1005
+- T1039
+kill_chain_phases:
+- Collection
+data_sources:
+- DeviceFileEvents
+falsepositives:
+- Backup, indexing, sync, or anti-malware scanning
+- Bulk file handling by administrators or approved enterprise tooling
+- Software inventory or migration utilities
+triage:
+- Identify the process touching large numbers of files and whether it is normal for the host
+- Review the command line, signer, path, and parent process for suspicious execution context
+- Check whether archive creation, cloud upload, email transfer, or removable media usage followed soon after
+validation:
+- Use a benign script to recurse through user folders in a lab and tune thresholds against normal platform noise
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.collection
+- attack.t1005
+- attack.t1039
+- sentinel
+- collection
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

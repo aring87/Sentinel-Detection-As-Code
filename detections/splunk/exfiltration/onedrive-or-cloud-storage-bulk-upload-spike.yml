@@ -1,0 +1,62 @@
+title: OneDrive or Cloud Storage Bulk Upload Spike
+id: SPLK-EXFIL-0003
+source_id: SENT-EXFIL-0003
+status: production
+description: Detects spikes in cloud storage upload activity that may indicate exfiltration to sanctioned or common cloud services.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: cloud
+  category: file_transfer
+source_table: CloudAppEvents
+search: '`microsoft_defender_cloud_app_events`
+
+  | where like(lower(ActionType), "%fileuploadedtocloud%") OR like(lower(ActionType), "%filesyncuploadedfull%") OR like(lower(ActionType), "%fileuploaded%")
+
+  | bin Timestamp span=30m | stats count as Uploads, dc(ObjectName) as FileCount, values(Application) as Apps by AccountObjectId, AccountDisplayName, Timestamp
+
+  | where Uploads >= 50 AND FileCount >= 25'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: medium
+risk_score: 65
+tactics:
+- Exfiltration
+techniques:
+- T1567.002
+kill_chain_phases:
+- Exfiltration
+data_sources:
+- CloudAppEvents
+falsepositives:
+- Legitimate large-scale sync or migration activity
+- Bulk collaboration uploads during business processes
+- Approved project handoff or content publishing workflows
+triage:
+- Review the user, application, upload volume, and timeframe
+- Determine whether the destination tenant, site, or workspace is expected
+- Look for preceding archive creation or collection activity
+- Check for risky sign-ins, consent abuse, or unusual host context
+validation:
+- Upload multiple benign files to a test cloud storage account and tune thresholds
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.exfiltration
+- attack.t1567.002
+- sentinel
+- onedrive
+- cloud-storage
+- exfiltration
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

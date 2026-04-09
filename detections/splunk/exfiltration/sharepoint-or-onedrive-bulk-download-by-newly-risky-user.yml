@@ -1,0 +1,63 @@
+title: SharePoint or OneDrive Bulk Download by Newly Risky User
+id: SPLK-EXFIL-0006
+source_id: SENT-EXFIL-0006
+status: production
+description: Detects high-volume SharePoint or OneDrive download activity by a user who recently had a risky or unusual sign-in, intended to surface post-compromise cloud collection and exfiltration.
+author: Adam Ring
+date: '2026-03-20'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: m365_and_entra
+  category: office_and_sign_in
+source_table: SigninLogs
+search: "`azure_signinlogs`\n| where ResultType=0\n| where RiskLevelAggregated IN (\"medium\", \"high\")\n| eval UserUpn=lower(UserPrincipalName)\n | stats LastRiskySignin=max(TimeGenerated) by UserUpn\n| join type=inner UserUpn [\n`m365_office_activity`\n| where Operation IN (\"FileDownloaded\", \"FileSyncDownloadedFull\", \"FileSyncDownloadedPartial\")\n| where OfficeWorkload IN (\"OneDrive\", \"SharePoint\")\n| eval UserUpn=lower(UserId)\n| bin TimeGenerated span=1h | stats count as DownloadCount, values(Site_Url) as Sites, values(OfficeObjectId) as Objects, FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated) by TimeGenerated, UserUpn, OfficeWorkload\n| where DownloadCount >= 25\n]\n| where (FirstSeen>=LastRiskySignin AND FirstSeen<=relative_time(LastRiskySignin, \"+24h\"))\n| table LastRiskySignin, FirstSeen, LastSeen, UserUpn, OfficeWorkload, DownloadCount, Sites, Objects"
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 89
+tactics:
+- Collection
+- Exfiltration
+techniques:
+- T1213
+- T1567
+kill_chain_phases:
+- Collection
+- Exfiltration
+data_sources:
+- SigninLogs
+- OfficeActivity
+falsepositives:
+- Approved migration or sync events after legitimate risk changes
+- Planned content export by authorized users
+- Large but expected business downloads
+triage:
+- Review the risky sign-in context and whether the account shows phishing or device-code indicators
+- Determine whether the download volume is unusual for the user
+- Check the sensitivity of the sites and files involved
+- Review whether the user also created forwarding rules, app consents, or Graph mail access afterward
+validation:
+- Tune against normal sync, export, and migration patterns in your tenant
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.collection
+- attack.exfiltration
+- attack.t1213
+- attack.t1567
+- onedrive
+- sharepoint
+- risky-signin
+- bulk-download
+- sentinel
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

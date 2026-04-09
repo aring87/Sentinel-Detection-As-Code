@@ -1,0 +1,72 @@
+title: Potential Remote SMB Encryption From Single Source Host
+id: SPLK-IMPACT-0005
+source_id: SENT-IMPACT-0005
+status: production
+description: Detects high-volume file modifications over SMB from a single source to many files in a short window, consistent with remote encryption tradecraft.
+author: Adam Ring
+date: '2026-03-25'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: security_events
+source_table: SecurityEvent
+search: '`windows_security_events`
+
+  | where EventID IN ("5145", "5140")
+
+  | eval Share=ShareName, Ip=IpAddress, User=Account, Target=RelativeTargetName
+
+  | where like(lower(Share), "%\\%") OR Share IN ("\\\\*\\C$", "\\\\*\\ADMIN$")
+
+  | bin TimeGenerated span=10m | stats count as FileTouchCount, dc(Target) as Targets, values(Share) as Shares, values(Target) as SampleTargets by TimeGenerated, Ip, User, Computer
+
+  | where FileTouchCount >= 100 OR Targets >= 50
+
+  | table TimeGenerated, Computer, Ip, User, FileTouchCount, Targets, Shares, SampleTargets'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 88
+tactics:
+- Impact
+- Lateral Movement
+techniques:
+- T1486
+- T1021.002
+kill_chain_phases:
+- Impact
+- Lateral Movement
+data_sources:
+- SecurityEvent
+falsepositives:
+- Backup software
+- Large-scale file migration
+- Enterprise software deployment touching many shares
+triage:
+- Review the source host, source user, share names, and affected targets
+- Determine whether the source system is managed, expected, or part of backup infrastructure
+- Check for encryption extensions, ransom note writes, or recovery tampering on impacted hosts
+- Review whether the same source host shows credential theft, remote admin activity, or Quick Assist/RMM behavior
+validation:
+- Simulate benign bulk SMB file operations and compare with suspicious rename or write bursts
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.impact
+- attack.lateral-movement
+- attack.t1486
+- attack.t1021.002
+- smb
+- sentinel
+- impact
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

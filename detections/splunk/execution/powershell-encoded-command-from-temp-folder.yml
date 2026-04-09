@@ -1,0 +1,66 @@
+title: PowerShell Encoded Command from Temp or User-Writable Path
+id: SPLK-EXEC-0003
+source_id: SENT-EXEC-0003
+status: production
+description: Detects PowerShell encoded-command execution when the PowerShell binary, parent process, or launch context is tied to temp or other user-writable locations.
+author: Adam Ring
+date: '2026-03-26'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | eval file_l=lower(FileName), cmd_l=lower(ProcessCommandLine), folder_l=lower(FolderPath), parent_folder_l=lower(InitiatingProcessFolderPath)
+
+  | where file_l IN ("powershell.exe","pwsh.exe")
+
+  | where like(cmd_l, "%-enc %") OR like(cmd_l, "%-encodedcommand%")
+
+  | where like(folder_l, "%\temp\%") OR like(folder_l, "%\appdata\local\%") OR like(folder_l, "%\appdata\roaming\%") OR like(folder_l, "%\users\public\%") OR like(folder_l, "%\downloads\%") OR like(parent_folder_l, "%\temp\%") OR like(parent_folder_l, "%\appdata\local\%") OR like(parent_folder_l, "%\appdata\roaming\%") OR like(parent_folder_l, "%\users\public\%") OR like(parent_folder_l, "%\downloads\%")
+
+  | rex field=ProcessCommandLine "(?:-enc|-encodedcommand)\s+(?<Encoded>[A-Za-z0-9+/=]+)"
+
+  | eval Decoded="[optional: decode Encoded with a custom eval function, external lookup, or SOAR playbook]"
+
+  | table Timestamp DeviceName AccountName FolderPath FileName ProcessCommandLine InitiatingProcessFileName InitiatingProcessFolderPath InitiatingProcessCommandLine Encoded Decoded SHA1 ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 82
+tactics:
+- Execution
+techniques:
+- T1059.001
+kill_chain_phases:
+- Execution
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Rare internal admin scripts launched from downloads or temp locations
+- Developer testing from unpacked or transient working folders
+triage:
+- Inspect the writable-path context and whether the process tree originated from downloads, temp, or appdata
+- Review the decoded command and any child process, network, or persistence behavior
+- Determine whether the payload was launched from a recently downloaded file
+validation:
+- Execute a benign encoded PowerShell payload from a temp folder in a lab
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.execution
+- attack.t1059.001
+- sentinel
+- execution
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

@@ -1,0 +1,60 @@
+title: Mass File Rename or Encryption Burst
+id: SPLK-IMPACT-0002
+source_id: SENT-IMPACT-0002
+status: production
+description: Detects rapid file operations across multiple directories consistent with ransomware encryption, destructive modification, or bulk rename behavior.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: file_event
+source_table: DeviceFileEvents
+search: '`microsoft_defender_device_file_events`
+
+  | where ActionType IN ("FileCreated", "FileModified", "FileRenamed")
+
+  | bin Timestamp span=10m | stats count as FileOps, dc(FolderPath) as Paths, values(FolderPath) as SamplePaths, values(FileName) as SampleFiles by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, Timestamp
+
+  | where FileOps >= 500 AND Paths >= 10'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 82
+tactics:
+- Impact
+techniques:
+- T1486
+kill_chain_phases:
+- Impact
+data_sources:
+- DeviceFileEvents
+falsepositives:
+- Bulk file migrations or legitimate conversion jobs
+- Backup, indexing, or sync products that touch many files
+- Large-scale content processing by approved business tools
+triage:
+- Identify the process making the changes and whether it is trusted
+- Review file extension changes, ransom note drops, and any unusual output naming patterns
+- Check for shadow copy deletion, recovery tampering, or log clearing activity nearby
+- Validate whether the host normally runs backup or mass-processing software
+validation:
+- Use a benign mass file modification script in a lab and compare thresholds
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.impact
+- attack.t1486
+- sentinel
+- impact
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

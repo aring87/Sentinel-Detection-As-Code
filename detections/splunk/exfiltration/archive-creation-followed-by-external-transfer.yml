@@ -1,0 +1,61 @@
+title: Archive Creation Followed by External Transfer
+id: SPLK-EXFIL-0002
+source_id: SENT-EXFIL-0002
+status: production
+description: Detects archive creation in user data paths followed by external network transfer activity from the same device, which may indicate staging and exfiltration.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: file_event_and_network
+source_table: DeviceFileEvents
+search: "`microsoft_defender_device_file_events`\n| eval file_l=lower(FileName), path_l=lower(FolderPath)\n| where like(file_l, \"%.zip\") OR like(file_l, \"%.7z\") OR like(file_l, \"%.rar\")\n| where like(path_l, \"%\\users\\%\") OR like(path_l, \"%\\desktop\\%\") OR like(path_l, \"%\\documents\\%\") OR like(path_l, \"%\\downloads\\%\")\n| rename Timestamp as ArchiveTime InitiatingProcessAccountName as ArchiveUser InitiatingProcessFileName as ArchiveProc FileName as ArchiveFile FolderPath as ArchivePath\n| table ArchiveTime DeviceId DeviceName ArchiveUser ArchiveProc ArchiveFile ArchivePath\n| join type=inner DeviceId [\n    `microsoft_defender_device_network_events`\n    | where NOT (cidrmatch(\"10.0.0.0/8\", RemoteIP) OR cidrmatch(\"172.16.0.0/12\", RemoteIP) OR cidrmatch(\"192.168.0.0/16\", RemoteIP) OR cidrmatch(\"127.0.0.0/8\", RemoteIP) OR cidrmatch(\"169.254.0.0/16\", RemoteIP))\n    | where RemoteIP!=\"127.0.0.1\"\n    | bin Timestamp span=30m\n    | stats count as ConnCount values(RemoteUrl)\
+  \ as Destinations values(RemoteIP) as IPs by DeviceId Timestamp InitiatingProcessFileName InitiatingProcessCommandLine\n]\n| eval __window_end=relative_time(ArchiveTime, \"+30m\")\n| where Timestamp>=ArchiveTime AND Timestamp<=__window_end\n| fields - __window_end file_l path_l\n| table ArchiveTime Timestamp DeviceName ArchiveUser ArchiveProc ArchiveFile ArchivePath InitiatingProcessFileName InitiatingProcessCommandLine ConnCount Destinations IPs"
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 82
+tactics:
+- Collection
+- Exfiltration
+techniques:
+- T1560
+- T1048
+kill_chain_phases:
+- Collection
+- Exfiltration
+data_sources:
+- DeviceFileEvents
+- DeviceNetworkEvents
+falsepositives:
+- Legitimate user archiving followed by approved upload or transfer
+- Backup, migration, or packaging workflows
+- Software release preparation
+triage:
+- Inspect what was archived, where it was written, and which process created it
+- Review the external destinations contacted shortly after archive creation
+- Determine whether the user and host normally create archives in those locations
+- Check for related cloud uploads, email exfiltration, or removable media activity
+validation:
+- Create a benign archive in user data paths and transfer a safe test file externally in a lab
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.collection
+- attack.exfiltration
+- attack.t1560
+- attack.t1048
+- sentinel
+- exfiltration
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

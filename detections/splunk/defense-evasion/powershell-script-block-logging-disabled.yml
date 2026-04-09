@@ -1,0 +1,65 @@
+title: PowerShell Script Block Logging Disabled
+id: SPLK-DEFEV-0001
+source_id: SENT-DEFEV-0001
+status: production
+description: Detects registry changes that disable or weaken PowerShell logging controls.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-06'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: registry_event
+source_table: DeviceRegistryEvents
+search: '`microsoft_defender_device_registry_events`
+
+  | eval key_l=lower(RegistryKey), value_l=lower(RegistryValueName), data_l=lower(RegistryValueData)
+
+  | where ActionType IN ("RegistryValueSet","RegistryKeyCreated")
+
+  | where like(key_l, "%\software\policies\microsoft\windows\powershell\scriptblocklogging%") OR like(key_l, "%\software\wow6432node\policies\microsoft\windows\powershell\scriptblocklogging%")
+
+  | where value_l="enablescriptblocklogging" OR value_l="enablescriptblockinvocationlogging"
+
+  | where RegistryValueData IN ("0","0x00000000")
+
+  | table Timestamp DeviceName InitiatingProcessAccountName RegistryKey RegistryValueName RegistryValueData InitiatingProcessFileName InitiatingProcessCommandLine ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 80
+tactics:
+- Defense Evasion
+techniques:
+- T1562.001
+kill_chain_phases:
+- Defense Evasion
+data_sources:
+- DeviceRegistryEvents
+falsepositives:
+- Group Policy changes from approved admin workflows
+- Security testing in a lab
+triage:
+- Manual validation is still required for this rule because the original KQL relied on complex joins, dynamic arrays, or source-specific cloud fields.
+- Review the setting changed and the initiating process
+- Determine whether the host received an expected policy update
+- Check for encoded PowerShell or LOLBin activity afterward
+validation:
+- Toggle PowerShell logging settings in a lab and confirm telemetry
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.defense-evasion
+- attack.t1562.001
+- sentinel
+- defense-evasion
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

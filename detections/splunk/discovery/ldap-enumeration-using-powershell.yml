@@ -1,0 +1,61 @@
+title: LDAP Enumeration Using PowerShell
+id: SPLK-DISC-0003
+source_id: SENT-DISC-0003
+status: production
+description: Detects PowerShell commands that invoke Active Directory or LDAP enumeration patterns.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where FileName IN ("powershell.exe", "pwsh.exe")
+
+  | where like(lower(ProcessCommandLine), "%get-aduser%") OR like(lower(ProcessCommandLine), "%get-adcomputer%") OR like(lower(ProcessCommandLine), "%get-adgroup%") OR like(lower(ProcessCommandLine), "%get-adobject%") OR like(lower(ProcessCommandLine), "%directorysearcher%") OR like(lower(ProcessCommandLine), "%ldap://%") OR like(lower(ProcessCommandLine), "%adsisearcher%") OR like(lower(ProcessCommandLine), "%get-domainuser%") OR like(lower(ProcessCommandLine), "%get-domaincomputer%")
+
+  | table Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: medium
+risk_score: 68
+tactics:
+- Discovery
+techniques:
+- T1087.002
+- T1018
+kill_chain_phases:
+- Discovery
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Approved AD administration and support work
+- Identity inventory scripts
+- Lab or validation testing
+triage:
+- Review the AD objects queried and host context
+- Determine whether the system is used for administration
+- Check for privilege escalation, lateral movement, or credential access afterward
+validation:
+- Run benign AD PowerShell queries in a lab
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.discovery
+- attack.t1087.002
+- attack.t1018
+- sentinel
+- discovery
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

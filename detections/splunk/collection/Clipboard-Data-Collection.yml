@@ -1,0 +1,63 @@
+title: Suspicious Clipboard Read or Clipboard Utility Execution
+id: SPLK-COLL-0001
+source_id: SENT-COLL-0001
+status: production
+description: Detects suspicious clipboard read activity or clipboard utility execution that may indicate collection of copied data, secrets, or credentials.
+author: Adam Ring
+date: '2026-03-06'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where FileName IN ("powershell.exe", "pwsh.exe", "cmd.exe", "clip.exe")
+
+  | where like(lower(ProcessCommandLine), "%get-clipboard%") OR like(lower(ProcessCommandLine), "%[windows.forms.clipboard]::gettext%") OR like(lower(ProcessCommandLine), "%gettext()%") OR like(lower(ProcessCommandLine), "%clip.exe%")
+
+  | where NOT like(lower(ProcessCommandLine), "%set-clipboard%")
+
+  | where NOT lower(InitiatingProcessFileName) IN ("code.exe", "devenv.exe", "powershell_ise.exe")
+
+  | table Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: medium
+risk_score: 55
+tactics:
+- Collection
+techniques:
+- T1115
+kill_chain_phases:
+- Collection
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Legitimate administrator or developer clipboard scripting
+- Automation workflows that intentionally read clipboard contents
+- User troubleshooting or local productivity scripts
+triage:
+- Review whether the account normally uses PowerShell or command-line clipboard access
+- Check whether clipboard reads occurred near archive creation, browser credential access, or outbound transfers
+- Review the initiating process and surrounding process tree for scripting, LOLBins, or user-writable execution paths
+validation:
+- Run Get-Clipboard in a lab PowerShell session and compare with normal admin activity
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.collection
+- attack.t1115
+- sentinel
+- collection
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

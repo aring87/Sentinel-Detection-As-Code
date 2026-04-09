@@ -1,0 +1,95 @@
+title: OAuth Redirection Abuse Followed by Suspicious Execution
+id: SPLK-EXEC-0010
+source_id: SENT-EXEC-0010
+status: production
+description: Detects suspicious OAuth authorization URL click activity followed closely by browser-driven download or suspicious endpoint execution.
+author: Adam Ring
+date: '2026-03-20'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: email_and_endpoint
+  service: url_clicks_and_process_creation
+source_table: UrlClickEvents
+search: '`microsoft_defender_url_click_events`
+
+  | where ActionType in ("ClickAllowed","UrlScanInProgress","UrlErrorPage") OR IsClickedThrough!="0"
+
+  | where like(lower(UrlChain), "%login.microsoftonline.com%") OR like(lower(UrlChain), "%oauth2%") OR like(lower(UrlChain), "%authorize%") OR like(lower(UrlChain), "%common/oauth2%")
+
+  | where like(lower(UrlChain), "%prompt=none%") OR like(lower(UrlChain), "%redirect_uri=%")
+
+  | eval JoinUser=lower(AccountUpn)
+
+  | where isnotnull(JoinUser) AND JoinUser!=""
+
+  | rename Timestamp as ClickTime
+
+  | table ClickTime, JoinUser, Url, UrlChain
+
+  | join type=inner JoinUser [
+
+  `microsoft_defender_device_process_events`
+
+  | where FileName IN ("powershell.exe", "pwsh.exe", "cmd.exe", "mshta.exe", "rundll32.exe", "wscript.exe", "cscript.exe", "msiexec.exe")
+
+  | where like(lower(ProcessCommandLine), "%http://%") OR like(lower(ProcessCommandLine), "%https://%") OR like(lower(ProcessCommandLine), "%download%") OR like(lower(ProcessCommandLine), "%curl %") OR like(lower(ProcessCommandLine), "%iwr %") OR like(lower(ProcessCommandLine), "%irm %") OR like(lower(ProcessCommandLine), "%/i %")
+
+  | eval JoinUser=lower(InitiatingProcessAccountUpn)
+
+  | where isnotnull(JoinUser) AND JoinUser!=""
+
+  | rename Timestamp as ExecTime
+
+  | table ExecTime, DeviceName, JoinUser, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+  ]
+
+  | where (ExecTime>=ClickTime AND ExecTime<=relative_time(ClickTime, "+2h"))
+
+  | table ClickTime, ExecTime, JoinUser, DeviceName, Url, UrlChain, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 86
+tactics:
+- Initial Access
+- Execution
+techniques:
+- T1566.002
+- T1204
+kill_chain_phases:
+- Delivery
+- Execution
+data_sources:
+- UrlClickEvents
+- DeviceProcessEvents
+falsepositives:
+- Legitimate admin download or install workflows after OAuth testing
+- Approved application authorization testing followed by normal software installation
+triage:
+- Confirm the redirect target and whether the user expected the OAuth flow
+- Review browser and endpoint download history around the click
+- Determine whether the downloaded or executed content used LOLBins, script interpreters, or installers
+- Check whether the same user shows mailbox access, consent abuse, or additional phishing indicators
+validation:
+- Test with benign OAuth-style links and safe downloads in a lab
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.initial-access
+- attack.execution
+- attack.t1566.002
+- attack.t1204
+- sentinel
+- execution
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

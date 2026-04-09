@@ -1,0 +1,78 @@
+title: VMware vCenter VMDK Attach-Detach Activity Potentially Related to NTDS Theft
+id: SPLK-CRED-0006
+source_id: SENT-CRED-0006
+status: production
+description: Detects suspicious VMware vCenter activity consistent with unmanaged VM creation, VMDK detach/attach behavior, and possible credential dumping from a virtualized domain controller.
+author: Adam Ring
+date: '2026-03-25'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: vmware
+  service: vcenter
+source_table: VMware_CL
+search: '`vmware_logs`
+
+  | where like(lower(RawData), "%vmdk%") OR like(lower(RawData), "%vmdk%") OR like(lower(RawData), "%detach%") OR like(lower(RawData), "%attach%") OR like(lower(RawData), "%reconfigure%") OR like(lower(RawData), "%vmreconfiguredevent%") OR like(lower(RawData), "%vmdiskattachedevent%") OR like(lower(RawData), "%vmdiskdetachedevent%") OR like(lower(RawData), "%createvm%") OR like(lower(RawData), "%registervm%") OR like(lower(RawData), "%poweronvm_task%")
+
+  | eval LowerRaw=lower(RawData)
+
+  | eval SuspicionScore=0
+
+  | eval SuspicionScore=SuspicionScore + if(like(lower(LowerRaw), "%detach%"),1,0)
+
+  | eval SuspicionScore=SuspicionScore + if(like(lower(LowerRaw), "%attach%"),1,0)
+
+  | eval SuspicionScore=SuspicionScore + if(like(lower(LowerRaw), "%vmdk%"),1,0)
+
+  | eval SuspicionScore=SuspicionScore + if(like(lower(LowerRaw), "%createvm%") or like(lower(LowerRaw), "%registervm%"),1,0)
+
+  | eval SuspicionScore=SuspicionScore + if(like(lower(LowerRaw), "%poweronvm%"),1,0)
+
+  | where SuspicionScore >= 3
+
+  | table TimeGenerated, Computer, RawData, SuspicionScore'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 90
+tactics:
+- Credential Access
+- Defense Evasion
+- Discovery
+techniques:
+- T1003.003
+- T1562
+kill_chain_phases:
+- Credential Access
+data_sources:
+- VMware_CL
+falsepositives:
+- Legitimate VMware recovery, migration, backup, or maintenance operations
+triage:
+- Review the actor, VM names, and change sequence around attach/detach events
+- Determine whether the affected VMDK belonged to a domain controller or other identity system
+- Correlate with unmanaged VM creation, registry hive access, or credential dumping activity
+validation:
+- Simulate benign vCenter disk operations and compare with suspicious attach-detach sequences
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.credential-access
+- attack.defense-evasion
+- attack.discovery
+- attack.t1003.003
+- attack.t1562
+- vmware
+- vcenter
+- sentinel
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

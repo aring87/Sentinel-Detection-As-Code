@@ -1,0 +1,64 @@
+title: Browser Extension Files Created by Non-Browser Process
+id: SPLK-BROW-0001
+source_id: SENT-BROW-0001
+status: production
+description: Detects suspicious creation of browser extension files or folders in browser profile extension directories by non-browser processes, which may indicate unauthorized extension staging or installation.
+author: Adam Ring
+date: '2026-03-20'
+modified: '2026-03-20'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: file_event
+source_table: DeviceFileEvents
+search: '`microsoft_defender_device_file_events`
+
+  | where like(lower(FolderPath), "%\\chrome\\user data\\default\\extensions\\%") OR like(lower(FolderPath), "%\\chrome\\user data\\profile %") OR like(lower(FolderPath), "%\\edge\\user data\\default\\extensions\\%") OR like(lower(FolderPath), "%\\edge\\user data\\profile %") OR like(lower(FolderPath), "%\\bravesoftware\\brave-browser\\user data\\default\\extensions\\%")
+
+  | where FileName IN ("manifest.json") OR match(FolderPath, "\\Extensions\\[a-z]{32}\\")
+
+  | where NOT lower(InitiatingProcessFileName) IN ("chrome.exe", "msedge.exe", "brave.exe", "firefox.exe")
+
+  | table Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, FolderPath, SHA1, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: medium
+risk_score: 60
+tactics:
+- Persistence
+techniques:
+- T1176
+kill_chain_phases:
+- Persistence
+data_sources:
+- DeviceFileEvents
+falsepositives:
+- Legitimate enterprise software deploying approved extensions
+- Browser migration or profile restore activity
+- Developer testing of unpacked extensions
+triage:
+- Review the extension path, manifest, and extension ID
+- Determine whether the extension is approved or enterprise-managed
+- Review the initiating process and command line for archive extraction, scripting, or installer behavior
+- Check for related browser credential theft, suspicious outbound traffic, or new persistence nearby
+validation:
+- Install a benign test extension and compare normal browser-created file patterns versus non-browser initiated writes
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.persistence
+- attack.t1176
+- browser-extension
+- chrome
+- edge
+- sentinel
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

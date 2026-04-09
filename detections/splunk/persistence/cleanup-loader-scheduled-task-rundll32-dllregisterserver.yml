@@ -1,0 +1,70 @@
+title: CleanUpLoader Scheduled Task Rundll32 DLLRegisterServer
+id: SPLK-PERS-0004
+source_id: SENT-PERS-0004
+status: production
+description: Detects scheduled task creation that launches rundll32.exe with DLLRegisterServer against DLLs in suspicious AppData\\Roaming paths, a pattern associated with CleanUpLoader-style persistence.
+author: Adam Ring
+date: '2026-03-20'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where FileName = "schtasks.exe"
+
+  | where like(lower(ProcessCommandLine), "%/create%")
+
+  | where ProcessCommandLine has_all ("rundll32","DllRegisterServer")
+
+  | where like(lower(ProcessCommandLine), "%\\appdata\\roaming\\%")
+
+  | table Timestamp, DeviceName, InitiatingProcessAccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA1, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: high
+risk_score: 88
+tactics:
+- Persistence
+- Execution
+techniques:
+- T1053.005
+- T1218.011
+kill_chain_phases:
+- Persistence
+- Execution
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Rare legitimate software registration activity using rundll32 from user-profile paths
+- Edge-case installer or updater activity in roaming profile folders
+triage:
+- Review the scheduled task name, trigger, and full rundll32 command
+- Check whether the referenced DLL lives in a random or recently created AppData\\Roaming folder
+- Determine whether the task name resembles known masquerading patterns such as WindowsCodecs or Security Updater
+- Correlate with suspicious downloads masquerading as PuTTY, WinSCP, or Teams-related utilities
+validation:
+- Create a benign scheduled task invoking rundll32 and DllRegisterServer from a lab user path
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.persistence
+- attack.execution
+- attack.t1053.005
+- attack.t1218.011
+- cleanup-loader
+- rundll32
+- scheduled-task
+- sentinel
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

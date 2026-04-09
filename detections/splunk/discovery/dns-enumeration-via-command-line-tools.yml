@@ -1,0 +1,59 @@
+title: DNS Enumeration via Command-Line Tools
+id: SPLK-DISC-0004
+source_id: SENT-DISC-0004
+status: production
+description: Detects use of common DNS lookup utilities that may indicate environment discovery or domain enumeration activity.
+author: Adam Ring
+date: '2026-03-26'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where FileName IN ("nslookup.exe", "whois.exe", "dig.exe")
+
+  | table Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: medium
+risk_score: 52
+tactics:
+- Discovery
+techniques:
+- T1016
+- T1046
+kill_chain_phases:
+- Discovery
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Administrator or network troubleshooting
+- DNS diagnostics and support workflows
+- Inventory or asset discovery tooling
+triage:
+- Review the queried domains, record types, and volume of lookup activity
+- Determine whether the user or host normally performs DNS diagnostics
+- Check for follow-on LDAP, account, or trust discovery
+validation:
+- Run benign nslookup or dig commands in a lab and compare with support activity
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.discovery
+- attack.t1016
+- attack.t1046
+- sentinel
+- discovery
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

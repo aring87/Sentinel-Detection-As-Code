@@ -1,0 +1,89 @@
+title: Teams External Contact Followed by Quick Assist
+id: SPLK-INIT-0006
+source_id: SENT-INIT-0006
+status: production
+description: Detects potential social-engineering chains where external Teams contact activity is followed by Quick Assist usage for the same user.
+author: Adam Ring
+date: '2026-03-20'
+modified: '2026-03-26'
+platform: splunk
+query_language: spl
+logsource:
+  product: m365_and_endpoint
+  service: office_and_process
+source_table: OfficeActivity
+search: '`m365_office_activity`
+
+  | where OfficeWorkload = "MicrosoftTeams"
+
+  | where like(lower(Operation), "%messagesent%") OR like(lower(Operation), "%chatcreated%") OR like(lower(Operation), "%callstarted%") OR like(lower(Operation), "%meetingparticipantadded%")
+
+  | eval UserUpn=lower(UserId)
+
+  | where like(lower(Parameters), "%external%") OR like(lower(Parameters), "%guest%") OR like(lower(Parameters), "%federated%")
+
+  | rename TimeGenerated as TeamsTime
+
+  | table TeamsTime, UserUpn, Operation, Parameters
+
+  | join type=inner UserUpn [
+
+  `microsoft_defender_device_process_events`
+
+  | where FileName = "quickassist.exe"
+
+  | eval UserUpn=lower(InitiatingProcessAccountUpn)
+
+  | rename Timestamp as QATime
+
+  | table QATime, DeviceName, UserUpn, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+  ]
+
+  | where (QATime>=TeamsTime AND QATime<=relative_time(TeamsTime, "+2h"))
+
+  | table TeamsTime, QATime, UserUpn, DeviceName, Operation, Parameters, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine'
+how_to_implement:
+- Map the source macro to your production indexes, sourcetypes, or datamodel-backed acceleration.
+- Prefer Splunk CIM field aliases where possible and validate original Microsoft field names before deployment.
+- Deploy with asset- and user-based allowlists for admin tools, software distribution, sanctioned automation, and IT support activity.
+- Start as a scheduled correlation search with a limited lookback and suppression window, then raise to notable only after baselining.
+severity: medium
+risk_score: 72
+tactics:
+- Initial Access
+techniques:
+- T1566
+- T1219
+kill_chain_phases:
+- Delivery
+- Exploitation
+data_sources:
+- OfficeActivity
+- DeviceProcessEvents
+falsepositives:
+- Legitimate external Teams collaboration followed by support activity
+- Guest meetings or chats that precede approved helpdesk sessions
+triage:
+- Review whether the user interacted with an external or guest Teams contact shortly before Quick Assist use
+- Confirm whether the contact claimed to be IT or help desk
+- Check for script execution, RMM tools, downloads, or persistence after Quick Assist
+- Validate whether the sequence matches any known scam or approved support workflow
+validation:
+- Tune against normal external Teams collaboration patterns in your environment
+lifecycle: production
+owner: Detection Engineering
+tags:
+- attack.initial-access
+- attack.t1566
+- attack.t1219
+- teams
+- quick-assist
+- social-engineering
+- sentinel
+- splunk
+- converted-from-sentinel
+production_tuning:
+- Validate macro scope, time range, and field aliases in a non-production search head first.
+- Tune known-good parent processes, service accounts, management hosts, and software deployment workflows.
+- Where count thresholds exist, baseline by business unit or asset class before enabling notable actions.

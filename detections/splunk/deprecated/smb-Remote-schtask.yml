@@ -1,0 +1,41 @@
+title: SMB Remote Scheduled Task
+id: SPLK-dodea-sig-031-smb-remote-schtask
+source_id: dodea-sig-031-smb-remote-schtask
+status: experimental
+description: Detects lateral movement using scheduled tasks via SMB.
+author: Adam Ring
+date: '2025-08-07'
+modified: ''
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  category: process_creation
+source_table: manual
+search: '`manual_data_source_mapping_required`
+
+  | eval note="Source Sentinel rule did not contain a query. Manual conversion required."'
+how_to_implement:
+- Create or adapt the macro `manual_data_source_mapping_required` to point to the relevant Splunk index, sourcetype, or datamodel.
+- Validate field names against your Splunk data source because this conversion preserves many original Sentinel field names where possible.
+- Tune thresholds, lookback windows, and suppressions in the target Splunk environment before production enablement.
+severity: null
+risk_score: null
+tactics:
+- lateral_movement
+techniques:
+- t1021
+kill_chain_phases: []
+data_sources: []
+falsepositives:
+- None known
+triage: []
+validation: []
+lifecycle: experimental
+owner: null
+tags:
+- attack.lateral_movement
+- attack.t1021.002
+- ckc.command-and-control
+- splunk
+- converted-from-sentinel

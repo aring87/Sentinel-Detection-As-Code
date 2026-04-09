@@ -1,0 +1,86 @@
+title: Quick Assist Followed by Batch or PowerShell Execution
+id: SPLK-C2-0006
+source_id: SENT-C2-0006
+status: stable
+description: Detects Quick Assist activity followed by batch script or PowerShell execution, aligned to Microsoft reporting that Storm-1811 used Quick Assist in tech-support scams and then executed batch scripts and follow-on tooling.
+author: Adam Ring
+date: '2026-03-20'
+modified: '2026-03-20'
+platform: splunk
+query_language: spl
+logsource:
+  product: windows
+  service: process_creation
+source_table: DeviceProcessEvents
+search: '`microsoft_defender_device_process_events`
+
+  | where FileName = "quickassist.exe"
+
+  | rename Timestamp as QATime
+
+  | rename InitiatingProcessAccountName as QAUser
+
+  | rename tolower(InitiatingProcessAccountUpn) as QAUpn
+
+  | rename ProcessCommandLine as QACommand
+
+  | table DeviceId, DeviceName, QATime, QAUser, QAUpn, QACommand
+
+  | join type=inner DeviceId [
+
+  `microsoft_defender_device_process_events`
+
+  | where FileName IN ("powershell.exe", "pwsh.exe", "cmd.exe")
+
+  | where like(lower(ProcessCommandLine), "%.bat%") OR like(lower(ProcessCommandLine), "%.cmd%") OR like(lower(ProcessCommandLine), "%-enc%") OR like(lower(ProcessCommandLine), "%downloadstring%") OR like(lower(ProcessCommandLine), "%curl %") OR like(lower(ProcessCommandLine), "%iwr %") OR like(lower(ProcessCommandLine), "%irm %") OR like(lower(ProcessCommandLine), "%frombase64string%")
+
+  | rename Timestamp as FOTime
+
+  | rename InitiatingProcessAccountName as FOUser
+
+  | rename tolower(InitiatingProcessAccountUpn) as FOUpn
+
+  | table DeviceId, FOTime, FOUser, FOUpn, FileName, ProcessCommandLine
+
+  ]
+
+  | where FOTime between (QATime .. QATime + 60m)
+
+  | table DeviceName, QATime, QAUser, QAUpn, QACommand, FOTime, FOUser, FOUpn, FileName, ProcessCommandLine'
+how_to_implement:
+- Create or adapt the macro `microsoft_defender_device_process_events` to point to the relevant Splunk index, sourcetype, or datamodel.
+- Validate field names against your Splunk data source because this conversion preserves many original Sentinel field names where possible.
+- Tune thresholds, lookback windows, and suppressions in the target Splunk environment before production enablement.
+severity: high
+risk_score: 85
+tactics:
+- Command and Control
+- Execution
+techniques:
+- T1219
+- T1059
+kill_chain_phases:
+- Command and Control
+- Execution
+data_sources:
+- DeviceProcessEvents
+falsepositives:
+- Approved remote support sessions with scripted remediation
+triage:
+- Confirm whether the user requested or expected remote support
+- Review the batch or PowerShell payload executed after Quick Assist
+- Look for follow-on downloaders, RMM tools, or persistence
+- Check helpdesk records to distinguish sanctioned support from social engineering
+validation:
+- Simulate a legitimate Quick Assist support session and compare with scripted post-session activity
+lifecycle: testing
+owner: Detection Engineering
+tags:
+- attack.command-and-control
+- attack.execution
+- quick-assist
+- t1219
+- t1059
+- sentinel
+- splunk
+- converted-from-sentinel
