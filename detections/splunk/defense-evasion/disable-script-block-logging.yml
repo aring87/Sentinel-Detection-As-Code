@@ -5,7 +5,7 @@ status: production
 description: Detects registry modifications that disable PowerShell Script Block Logging.
 author: Adam Ring
 date: '2026-04-08'
-modified: ''
+modified: '2026-04-08'
 platform: splunk
 query_language: spl
 logsource:
